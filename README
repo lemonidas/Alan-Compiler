@@ -1,3 +1,14 @@
 Alan Compiler
 Project for Course: http://courses.softlab.ntua.gr/compilers/
-Author: Lampropoulos Leonidas
+Author: Lampropoulos Leonidas - 03107044
+
+Lexer:        Done
+Parser:       Done
+Intermediate: Done
+Final Code:   Done
+
+Optimizations:
+-Constant Folding
+-Local Copy Propagation
+-Reverse Copy Propagation
+-Unreachable Code Elimination

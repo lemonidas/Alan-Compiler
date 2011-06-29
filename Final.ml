@@ -17,7 +17,7 @@ let lib_functions = ref Sstring.empty
 
 (* Start code *)
 let starting_code main_label= 
-	Printf.sprintf "\
+  let start = Printf.sprintf "\
 	xseg\tsegment\tpublic code\n\
 	\t\tcs : xseg, ds : xseg, ss : xseg\n\
 	\tassume\n\
@@ -28,11 +28,10 @@ let starting_code main_label=
 	\tint\t21h\n\
 	main endp\n"
 		main_label
+  in (Start start)
 
 (* End code *)
-let end_code = "\
-xseg ends\n\
-\tend  main\n"
+let end_code = End "xseg ends\n\tend  main\n"
 
 (* Hash table for function labels *)
 let func_hash = Hashtbl.create 42
@@ -96,24 +95,26 @@ let find_parameter_size f =
 	| _ -> internal "Function not a function entry"; raise Terminate
 
 (* Abbreviation *)
-let label n = Printf.sprintf "@%d" n
+let label f n = 
+  let name = get_name f in
+  Printf.sprintf "@%d_%s" n name 
 
 (* Update Links *)
 let update_AL callee called =
 	if (callee.entry_scope.sco_nesting < called.entry_scope.sco_nesting)
 	then 
-		Printf.sprintf "\tpush\tbp\n"
+    [Push (Register Bp)]
 	else if (callee.entry_scope.sco_nesting = called.entry_scope.sco_nesting)
 	then 
-		Printf.sprintf "\tpush\tword ptr [bp+4]\n"
+    [Push (Mem_loc ("word", Bp, 4))]
 	else 
 		let n = callee.entry_scope.sco_nesting - called.entry_scope.sco_nesting in
 		let rec walk i acc =
 			if (i < n) 
 			then
-				walk (i+1) ("\tmov\tsi, word ptr [si+4]\n"::acc)
-			else String.concat "" (List.rev (("\tpush\tword ptr [si+4]\n")::acc))
-		in walk (n-1) ["\tmov\tsi, word ptr [bp+4]\n"]
+        walk (i+1) ((Mov (Register Si, Mem_loc ("word", Si, 4)))::acc)
+			else ((Push (Mem_loc ("word",Si, 4)))::acc)
+		in walk (n-1) [Mov (Register Si,Mem_loc ("word", Bp, 4))]
 
 (* Bool function to find if entry is local *)
 let local ent = 
@@ -121,10 +122,10 @@ let local ent =
 	ent.entry_scope.sco_nesting = c.entry_scope.sco_nesting + 1
 
 (* Function to convert type to "word"/"byte" *)
-let size_description = function
+let rec size_description = function
 	|TYPE_byte -> "byte"
 	|TYPE_int -> "word"
-	|TYPE_array(_) -> "word" (*FIXME*)
+	|TYPE_array(tp, sz) -> size_description tp
 	|_ -> internal "Attempting to load wrong thingy";
 		raise Terminate
 
@@ -148,52 +149,48 @@ let get_info = function
 
 (* Get AR function *)
 let get_ar ent = 
-	let base = "\tmov\tsi, word ptr [bp+4]\n" in
+	let base = [Mov (Register Si,Mem_loc ("word", Bp, 4))] in
 	let c =  (Stack.top func_stack) in 
 	let na = ent.entry_scope.sco_nesting in
 	let nc = c.entry_scope.sco_nesting + 1 in
 	let rec loop acc = function
-		| 0 -> String.concat "" (List.rev acc)
+		| 0 -> acc
 		| n -> 
-			Printf.printf "Calling loop with %d\n" n;
-			flush_all();
-			loop ("\tmov\tsi, word ptr [si+4]\n"::acc) (n-1)
-	in loop [base] (nc - na - 1)
+      loop ((Mov (Register Si,Mem_loc ("word", Si, 4)))::acc) (n-1)
+	in loop base (nc - na - 1)
 
 (* Load helper function *)
 let rec load reg q = 
-	flush_all();
 	match q with
-	|Quad_none -> ""
-	|Quad_int(str) -> 
-		Printf.sprintf "\tmov\t%s, %s\n" reg str
-	|Quad_char(str) ->
-		Printf.sprintf "\tmov\t%s, %d\n" reg (Char.code str.[0])
+	|Quad_none -> []
+	|Quad_int(str) -> [Mov (Register reg, Num str)]
+	|Quad_char(str) -> 
+    let character_code = string_of_int (Char.code str.[0]) in
+    [Mov (Register reg, Num character_code)]
 	|Quad_string(str)->	
 		internal "Cannot Load a String in a register"; raise Terminate
 	|Quad_entry(ent) -> (
 		let (size, offset, mode) = get_info ent.entry_info in
 		match ((local ent), mode) with
 		|(true,true) ->
-			Printf.sprintf  "\tmov\tsi, word ptr [si%+d]\n\
-							 \tmov\t%s, %s ptr [si]\n"
-				offset reg size 
+      List.rev (* Everything must be in reverse order! *)
+      [ Mov (Register Si, Mem_loc ("word", Si, offset));
+        Mov (Register reg, Mem_loc (size, Si, 0)) ]
 		|(true,false) ->
-			Printf.sprintf "\tmov\t%s, %s ptr [bp%+d]\n"
-				reg size offset
+      [ Mov (Register reg, Mem_loc (size, Bp, offset)) ]
 		|(false,true) ->
 			let ar = get_ar ent in
-			Printf.sprintf "%s\tmov\tsi, word ptr [si%+d]\n\
-							  \tmov\t%s, %s ptr [si]\n"
-				ar offset reg size
+      let tail = List.rev
+      [ Mov (Register Si, Mem_loc ("word", Si, offset));
+        Mov (Register reg, Mem_loc (size, Si, 0)) ]
+      in tail @ ar
 		|(false, false) ->
 			let ar = get_ar ent in
-			Printf.sprintf "%s\tmov\t%s, %s ptr [si%+d]\n"
-				ar reg size offset
+      ( (Mov (Register reg, Mem_loc (size, Si, offset)))::ar )
 		)
 	|Quad_valof (ent) ->
-		Printf.sprintf "%s\tmov\t%s, %s ptr [di]\n"
-			(load "di" (Quad_entry(ent))) reg "word" (*FIXME*)
+    (Mov (Register reg, Mem_loc ("word" (*FIXME*), Di, 0)))::
+    (load Di (Quad_entry(ent)))
 
 (* Load address helper function *)
 let load_addr reg q =
@@ -202,24 +199,21 @@ let load_addr reg q =
 		let (size,offset,mode) = get_info ent.entry_info in
 		match ((local ent), mode) with
 		|(true,true) ->
-			Printf.sprintf "\tmov\t%s, word ptr [bp%+d]\n"
-				reg offset
+      [Mov (Register reg, Mem_loc ("word", Bp, offset))]
 		|(true,false) ->
-			Printf.sprintf "\tlea\t%s, %s ptr [bp%+d]\n"
-				reg size offset
+      [Lea (Register reg, Mem_loc (size, Bp, offset))]
 		|(false, true) ->
-			Printf.sprintf "%s\tlea\t%s, %s ptr [si%+d]\n"
-				(get_ar ent) reg size offset
+      (Lea (Register reg, Mem_loc (size, Si, offset)))::
+			(get_ar ent)
 		|(false, false) ->
-			Printf.sprintf "%s\tmov\t%s, word ptr [si%+d]\n"
-				(get_ar ent) reg offset
+      (Mov (Register reg, Mem_loc ("word", Si, offset)))::
+  		(get_ar ent)
 		)
 	|Quad_valof(ent) -> 
 		load reg (Quad_entry(ent))
 	|Quad_string(str) -> 
 		let addr = add_string str in
-		Printf.sprintf "\tlea\t%s, byte ptr %s\n"
-			reg addr
+    [Lea (Register reg, String_addr addr)]
 	|_ -> internal "Loading address of non entry/valof/string"; 
 		raise Terminate
 
@@ -228,26 +222,30 @@ let store reg ent =
 	let (size, offset, mode) = get_info ent.entry_info in
 		match ((local ent), mode) with
 		|(true,true) ->
-			Printf.sprintf "\tmov\tsi, word ptr [bp%+d]\n\
-						    \tmov\t%s ptr [si], %s\n"
-				offset size reg
+      List.rev
+      [ Mov (Register Si, Mem_loc ("word", Bp, offset));
+        Mov (Mem_loc (size, Si, 0), Register reg) ]
 		|(true,false) ->
-			Printf.sprintf "\tmov\t%s ptr [bp%+d], %s\n"
-				size offset reg
+      [ Mov (Mem_loc (size, Bp, offset), Register reg) ]
 		|(false,true) ->
 			let ar = get_ar ent in
-			Printf.sprintf "%s\tmov\tsi, word ptr [si%+d]\n\
-							  \tmov\t%s ptr [si], %s\n"
-				ar offset size reg
+      let tail = List.rev 
+      [ Mov (Register Si, Mem_loc ("word", Si, offset));
+        Mov (Mem_loc (size, Si, 0), Register reg) ]
+      in tail @ ar (* Reverse order! *)
 		|(false, false) ->
 			let ar = get_ar ent in
-			Printf.sprintf "%s\tmov\t%s ptr [si%+d], %s\n"
-				ar size offset reg
+      ( Mov (Mem_loc (size, Si, offset), Register reg) )::ar
 
-(* Main function to convert a quad to string of final code *)
-let convert_to_string = function
+let rec flatten_rev acc = function
+  | [] -> acc
+  | (h::t) -> flatten_rev (h @ acc) t
+      
+
+(* Main function to convert a quad to string of final_type code *)
+let final_t_of_quad = function
 	|Quad_set(q,e) ->
-		Printf.sprintf "%s%s" (load "ax" q) (store "ax" e)
+    flatten_rev [] [ load Ax q; store Ax e ]
 	|Quad_array(q1,q,e2) ->
 		let e1 = match q1 with
 		|Quad_entry x -> x
@@ -258,48 +256,49 @@ let convert_to_string = function
 			|ENTRY_parameter(info) ->sizeOfArrayElem info.parameter_type
 			|_ -> internal "Called array with not an array"; raise Terminate
 		in
-		String.concat "" 
-			[(load "ax" q);
-			 (Printf.sprintf "\tmov\tcx, %d\n" size);
-			 ("\timul\tcx\n");
-			 (load_addr "cx" (Quad_entry(e1)));
-			 ("\tadd\tax, cx\n");
-			 (store "ax" e2)]
+    flatten_rev [] 
+    [ load Ax q ;
+      [ Mov (Register Cx, Num (string_of_int size)) ];
+      [ IMul Cx ];
+      load_addr Cx (Quad_entry e1);
+      [Add (Action_reg Ax, Action_reg Cx) ];
+      store Ax e2
+    ]
 	|Quad_calc(op,q1,q2,e) ->
 		begin 
 		match op with
 	 	|"+" ->
-			String.concat "" 
-				[(load "ax" q1);
-				 (load "dx" q2);
-				 ("\tadd\tax, dx\n");
-				 (store "ax" e)]
+      flatten_rev [] 
+      [ load Ax q1;
+        load Dx q2;
+        [Add (Action_reg Ax, Action_reg Dx)];
+        store Ax e ]
 	 	|"-" ->
-			String.concat ""
-				[(load "ax" q1);
-				 (load "dx" q2);
-				 ("\tsub\tax, dx\n");
-				 (store "ax" e)]
+      flatten_rev []
+      [ load Ax q1;
+        load Dx q2;
+        [Sub (Action_reg Ax, Action_reg Dx)];
+        store Ax e ]
 	 	|"*" ->
-			String.concat ""
-				[(load "ax" q1);
-				 (load "cx" q2);
-				 ("\timul\tcx\n");
-				 (store "ax" e)]
+      flatten_rev []
+      [ load Ax q1;
+        load Cx q2;
+        [IMul Cx];
+        store Ax e ]
 	 	|"/" ->
-			String.concat ""
-				[(load "ax" q1);
-				 ("\tpwd\n");
-				 (load "cx" q2);
-				 ("\tidiv\tcx\n");
-				 (store "ax" e)]
+      flatten_rev []
+      [ load Ax q1;
+        [Pwd];
+        load Cx q2;
+        [IDiv Cx];
+        store Ax e ]
 	 	|"%" ->
-			String.concat "" 
-				[(load "ax" q1);
-				 ("\tpwd\n");
-				 (load "cx" q2);
-				 ("\tidiv\tcx\n");
-				 (store "dx" e)]
+      flatten_rev [] 
+      [ load Ax q1;
+        [Pwd];
+        load Cx q2;
+        [IDiv Cx];
+        store Dx e ]
 		|_ -> internal "Not an operator"; raise Terminate
 		end
 	|Quad_cond(op, q1, q2, n) ->
@@ -313,85 +312,117 @@ let convert_to_string = function
 			|">=" -> "jge"
 			|">" -> "jg"
 			|_ -> internal "Not a comparator"; raise Terminate
-		in String.concat ""
-			[(load "ax" q1);
-			 (load "dx" q2);
-			 ("\tcmp\tax,dx\n");
-			 (Printf.sprintf "\t%s\t%s\n" jmp (label(!n)))]
+    in flatten_rev []
+      [ load Ax q1;
+        load Dx q2;
+        [Cmp (Ax,Dx)];
+        [Cond_jump (jmp, (label (Stack.top func_stack) (!n)))] ]
 		end
 	|Quad_jump(z)->
-		Printf.sprintf "\tjmp\t%s\n" (label(!z))
+    [ Jump (label (Stack.top func_stack) (!z)) ]
 	|Quad_unit(f)->
 		Stack.push f func_stack;
 		let size = match f.entry_info with
 			| ENTRY_function (info) -> (-info.function_negoffs)
 			| _ -> internal "Function not a function"; raise Terminate
-		in String.concat "" 
- 			[(Printf.sprintf "%s\tproc\tnear\n" (get_name f));
-			 ("\tpush\tbp\n");
-			 ("\tmov\tbp,sp\n");
-			 (Printf.sprintf "\tsub\tsp, %d\n" size)]
+    in flatten_rev []
+    [ [Proc (get_name f)];
+      [Push (Register Bp)];
+      [Mov (Register Bp, Register Sp)];
+      [Sub (Action_reg Sp, Constant size)] ]
 	|Quad_endu(f)->
 		ignore (Stack.pop func_stack);
-		String.concat ""
-			[(Printf.sprintf "%s:\n\tmov\tsp, bp\n" (endof f));
-			 ("\tpop\tbp\n");
-			 ("\tret\n");
-			 (Printf.sprintf "%s\tendp\n" (get_name f))]
+    let endp = (Printf.sprintf "%s\tendp\n" (get_name f)) in
+    flatten_rev [] 
+    [ [Label (endof f)];
+      [Pop Bp];
+      [Ret];
+      [Misc endp] ]
 	|Quad_call(f) ->
 		let f_type = match f.entry_info with
 		| ENTRY_function (info) -> info.function_result
 		| _ -> internal "Calling something not a function"; raise Terminate
 		in let dec_amt = if (f_type = TYPE_proc) then 2 else 0 in
 		let size = find_parameter_size f in 
-		String.concat "" 
-			[(Printf.sprintf "\tsub\tsp, %d\n" dec_amt);
-			 (update_AL (Stack.top func_stack) f);
-			 (Printf.sprintf "\tcall\tnear ptr %s\n" (get_name f));
-			 (Printf.sprintf "\tadd\tsp, %d\n" (4+size))]
+    flatten_rev []
+    [ [Sub (Action_reg Sp, Constant dec_amt)];
+			update_AL (Stack.top func_stack) f;
+      [Call (get_name f)];
+      [Add (Action_reg Sp, Constant (4+size))] ]
 	|Quad_ret ->
-		Printf.sprintf "\tjmp\t%s\n" (endof (Stack.top func_stack))
-	|Quad_dummy -> ""
+    [Jump (endof (Stack.top func_stack))]
+	|Quad_dummy -> []
 	|Quad_par(q,pm)->
 		match ((get_type q), pm) with
 		|(TYPE_int, PASS_BY_VALUE) ->
-			Printf.sprintf "%s\tpush\tax\n" (load "ax" q)
+      flatten_rev []
+      [ load Ax q;
+        [Push (Register Ax)] ]
 		|(TYPE_byte, PASS_BY_VALUE) ->
-			String.concat "" 
-				[(load "al" q);
-				 ("\tsub\tsp, 1\n");
-				 ("\tmov\tsi, sp\n");
-				 ("\tmov\tbyte ptr [si], al\n")]
+      flatten_rev [] 
+      [ load Al q;
+        [Sub (Action_reg Sp, Constant 1)];
+        [Mov (Register Si, Register Sp)];
+        [Mov (Mem_loc ("byte", Si, 0), Register Al)] ]
 		|(_, PASS_BY_REFERENCE)
 		|(_, PASS_RET) ->
-			Printf.sprintf "%s\tpush\tsi\n" 
-				(load_addr "si" q)	 
-	
+      flatten_rev []
+      [ load_addr Si q;
+        [Push (Register Si)] ]
 
-(* Main Final Code function - outputs im_code to out_chan *)
-let output_final_code out_chan block_code =
+(* Main Final Code function - outputs im_code to out_chan and returns the low-level representation 
+ * IN  : quad_t array array array, out_channel
+ * OUT : final_t list
+ *)
+let output_final_code out_chan fun_code =
 	
-	(* First passage to register all the functions with their respecting labels *)
-	Array.iter (Array.iter register_quad) block_code;
-
-	(* Get the label of the "main" function *)
-	let len = Array.length block_code in
-	let last_len = Array.length block_code.(len-1) in 
+  (* First passage to register all the functions with their respecting labels 
+   * All Quad_unit are the first quads of each block... *)
+  let register_function fun_block = 
+    match fun_block.(0).(0) with
+    | Quad_unit f -> set_name f
+    | _ -> internal "First quad not a unit"; raise Terminate
+  in 
+  Array.iter register_function fun_code;
+	
+  (* Get the label of the "main" function 
+   * The last block's first quad contains it *)
+	let len = Array.length fun_code in
 	let main_label = 
-		match block_code.(len-1).(last_len-1) with
-		| Quad_endu (f) -> (get_name f)
-		| _ -> internal "Last quad is not a quad_endu"; raise Terminate 
-
-	(* Output starting segment *)
-	in Printf.fprintf out_chan "%s" (starting_code main_label);
-
-	(* Iteration through all quads for output *)
-	let output_single_quad quad =
-		Printf.fprintf out_chan "%s" (convert_to_string quad)
-	in let output_single_block block_no block =
-		Printf.fprintf out_chan "@%d:\n" block_no;
-		Array.iter output_single_quad block
-	in Array.iteri output_single_block block_code;
+		match fun_code.(len-1).(0).(0) with
+		| Quad_unit f -> get_name f
+		| _ -> internal "Last funs first quad is not a quad_unit"; raise Terminate 
+  in 
+  let starting_segment = starting_code main_label in
+  
+  Printf.fprintf out_chan "%s" (string_of_final_t starting_segment);
+	(* Iteration through all quads to create low-level final code *)
+  let convert_single_block block_code =
+    Array.fold_left 
+      (fun acc quad -> (final_t_of_quad quad @ acc)) [] block_code
+  in let convert_single_fun fun_block =
+    let len = Array.length fun_block in
+    let f_entry = 
+      match fun_block.(0).(0) with
+      | Quad_unit f -> f
+      | _ -> internal "First quad not a unit"; raise Terminate
+    in let rec walk_fun i acc =
+      if (i >= len) 
+      then acc
+      else 
+        let block_label = label f_entry i in
+        let final_t_label = if i > 0 then [Label block_label] else [] in
+        walk_fun (i+1) ((convert_single_block fun_block.(i)) @ (final_t_label @ acc))
+    in walk_fun 0 []
+  in let low_level_code = 
+    List.rev (Array.fold_left 
+      (fun acc block -> (convert_single_fun block) @ acc) [] fun_code) in
+    
+  (* Output low_level code *)
+  List.iter 
+    (fun final -> 
+      Printf.fprintf out_chan "%s" (string_of_final_t final)
+    ) low_level_code;
 
 	(* Iterate through all strings to output them *)
 	let i = ref 0 in
@@ -407,4 +438,4 @@ let output_final_code out_chan block_code =
 	Sstring.iter output_single_external !lib_functions;
 
 	(* Output end code *)
-	Printf.fprintf out_chan "%s" end_code
+  Printf.fprintf out_chan "%s" (string_of_final_t end_code)

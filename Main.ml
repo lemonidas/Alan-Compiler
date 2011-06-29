@@ -64,9 +64,10 @@ let optimize block_code =
 		Optimizations.immediate_backward_propagation block_code;
 
 		(* Remaining optimizations - constant folding *)
-		Optimizations.fold_constants block_code;
+		Optimizations.constant_folding block_code;
 		Optimizations.dummy_elimination block_code;
-
+    
+    (*
 		(* Start copy propagation - locally at first *)
 		Array.iter (Optimizations.local_copy_propagation) block_code;
 
@@ -75,6 +76,8 @@ let optimize block_code =
 		Optimizations.unreachable_code_elimination flow_graph;
 
 		Flow.blocks_of_flow_graph flow_graph
+    *)
+    block_code
 		)
 	else block_code
 	
@@ -85,26 +88,12 @@ let main =
 		|None -> stdin; 
 		|Some(str) -> open_in str
   	in let lexbuf = Lexing.from_channel in_channel in
-	let code_list = Parser.program Lexer.lexer lexbuf in
-	let len = List.length code_list in
-	let code = Array.make len Quad_ret in
-	let rec walk lst i=
-		match lst with
-		|[] -> ()
-		|(quad::tail) -> 
-			begin match quad with
-			|Quad_jump(offset) ->
-				code.(i) <- Quad_jump(ref(i + !offset))
-			|Quad_cond(op, q1, q2, offset) ->
-				code.(i) <- Quad_cond(op, q1, q2, ref(i + !offset))				
-			|_ -> code.(i) <- quad
-			end;
-			walk tail (i+1)
-	in walk (List.rev code_list) 0;
-	let block_code = optimize (Flow.convert_to_blocks code) in
+	let code_list = List.rev (Parser.program Lexer.lexer lexbuf) in
+  let block_code = Blocks.blocks_of_quad_t_list code_list in
+	let block_code = optimize block_code in
 	match !mode with
 	|Intermediate ->
-		Flow.output_block_code stdout block_code
+		Blocks.output_block_code stdout block_code
 	|Final ->
 		Printf.printf "Final mode not implemented yet\n"
 	|Normal ->
@@ -115,6 +104,6 @@ let main =
 		|Some(str) ->
 			let base = String.sub str 0 ((String.length str) - 5) in
 			let imm_channel = open_out (base^".imm") in (
-			Flow.output_block_code imm_channel block_code;
+			Blocks.output_block_code imm_channel block_code;
 			output_final_code (open_out (base^".asm")) block_code;
 			)

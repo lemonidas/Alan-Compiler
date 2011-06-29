@@ -314,8 +314,9 @@ let handle_if_else_stmt cond s1 s2 =
 (* Handle while statement *)
 let handle_while_stmt cond stmt = 
 	let l = List.length stmt in
+  let lc = List.length cond.c_code in
 	List.iter (fun x -> x := !x + l + 1) cond.q_false;
-	let new_quad = Quad_jump (ref (-l)) in
+	let new_quad = Quad_jump (ref (-l-lc)) in
 	new_quad :: (stmt @ cond.c_code)
 
 (* Handle a return expressiong *)

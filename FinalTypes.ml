@@ -30,8 +30,13 @@ type mem_loc =
 let string_of_mem_loc = function
 	| Register reg -> (string_of_register reg)
 	| Mem_loc (size, reg, offset) ->
-		  Printf.sprintf "%s ptr [%s %+d]" 
-			size (string_of_register reg) offset
+      if (offset = 0)
+      then 
+		    Printf.sprintf "%s ptr [%s]" 
+			  size (string_of_register reg)
+      else
+	  	  Printf.sprintf "%s ptr [%s%+d]" 
+  			size (string_of_register reg) offset
 	| String_addr str -> 
       Printf.sprintf "byte ptr %s" str
 	| Num str -> str
@@ -50,7 +55,7 @@ type final_t =
 	| IDiv of register
 	| Push of mem_loc
 	| Pop of register
-	| Pwd
+	| Cwd
 	| Ret 
 	| Label of string
 	| Misc of string
@@ -94,7 +99,7 @@ let string_of_final_t = function
 	| Pop reg ->
       Printf.sprintf "\tpop\t%s\n"
       (string_of_register reg)
-	| Pwd -> "\tpwd\n"
+	| Cwd -> "\tcwd\n"
 	| Ret -> "\tret\n"
 	| Label lab ->
       Printf.sprintf "%s:\n" lab

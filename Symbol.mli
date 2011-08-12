@@ -9,7 +9,7 @@ type param_status =
 
 type scope = {
   sco_parent : scope option;
-  sco_nesting : int;
+  mutable sco_nesting : int;
   mutable sco_entries : entry list;
   mutable sco_negofs : int;
   ret_type : Types.typ;

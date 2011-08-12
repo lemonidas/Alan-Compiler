@@ -44,52 +44,52 @@ let rec registerFunction id param_list ret_type sc=
 
 (* Called to Register the external Library *)
 let registerLibrary() =
-	ignore(registerFunction "writeInteger" 	
+	let p = registerFunction "writeInteger" 	
 		[("n", TYPE_int, PASS_BY_VALUE)] 
-		TYPE_proc false);
-	ignore(registerFunction "writeByte" 	
+		TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "writeByte" 	
 		[("b", TYPE_byte, PASS_BY_VALUE)] 
-		TYPE_proc false);
-	ignore(registerFunction "writeChar" 	
+		TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "writeChar" 	
 		[("b", TYPE_byte, PASS_BY_VALUE)] 
-		TYPE_proc false);
-	ignore(registerFunction "writeString" 	
+		TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "writeString" 	
 		[("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)] 
-		TYPE_proc false);
-	ignore(registerFunction "readInteger" 	
+		TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "readInteger" 	
 		[] 
-		TYPE_int false);
-	ignore(registerFunction "readByte" 	
+		TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "readByte" 	
 		[] 
-		TYPE_byte false);
-	ignore(registerFunction "readChar" 	
+		TYPE_byte false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "readChar" 	
 		[] 
-		TYPE_byte false);
-	ignore(registerFunction "readString" 	
+		TYPE_byte false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "readString" 	
 		[("n", TYPE_int, PASS_BY_VALUE);
 		("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-	 	TYPE_int false);
-	ignore(registerFunction "extend" 
+	 	TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "extend" 
 		[("b",TYPE_byte, PASS_BY_VALUE)] 
-		TYPE_int false);
-	ignore(registerFunction "shrink" 
+		TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "shrink" 
 		[("i", TYPE_int, PASS_BY_VALUE)] 
-		TYPE_byte false);
-	ignore(registerFunction "strlen" 
+		TYPE_byte false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "strlen" 
 		[("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)] 
-		TYPE_int false);
-	ignore(registerFunction "strcmp"
+		TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "strcmp"
 		 [("s1", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
 		 ("s2", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-		 TYPE_int false);
-	ignore(registerFunction "strcpy"
+		 TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "strcpy"
 		 [("trg", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
 		 ("src", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-		 TYPE_proc false);
-	ignore(registerFunction "strcat"
+		 TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+	let p = registerFunction "strcat"
 		 [("trg", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
 		 ("src", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-		 TYPE_proc false);
+		 TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
 ;;
 
 %}
@@ -360,7 +360,7 @@ expr:				expr T_Add expr {
 						{code = [];	place = Quad_int($1)}
 					}
 					|T_Char {
-						{code = []; place = Quad_char((fst $1))}
+						{code = []; place = Quad_char((snd $1))}
 					}
 					|T_String {
 						{code = []; place = Quad_string((fst $1))}

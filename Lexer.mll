@@ -20,18 +20,19 @@ let create_hashtable size init =
 
 exception Lexer_exception of (string);;
 
-let implode ch_l =
-	let 
-		res = String.create (List.length ch_l) 
-	in let rec impl_help n = function
-		| [] -> res
-  		| (h::t) -> (
-			res.[n] <- h; 
-			impl_help (n+1) t
-			)
-	in
- 	impl_help 0 ch_l
-;;
+(* Caml Inria explode - implode functions *)
+let explode s =
+  let rec expl i l =
+    if i < 0 then l else
+    expl (i - 1) (s.[i] :: l) in
+  expl (String.length s - 1) [];;
+
+let implode l =
+  let result = String.create (List.length l) in
+  let rec imp i = function
+  | [] -> result
+  | c :: l -> result.[i] <- c; imp (i + 1) l in
+  imp 0 l;;
 
 let keywords = create_hashtable 10 [
 	("byte", T_Byte);

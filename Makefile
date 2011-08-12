@@ -8,9 +8,10 @@ else
 endif
 
 EXEFILE=alanc$(EXE)
-MLFILES=Hashcons.ml Identifier.ml Error.ml Types.ml Symbol.ml \
-  Printing.ml Semantic.ml Quads.ml Lexer.ml Parser.ml Blocks.ml \
-  ControlFlow.ml FinalTypes.ml Optimizations.ml Final.ml Main.ml 
+MLFILES=Hashcons.ml Identifier.ml Error.ml Types.ml Symbol.ml       \
+  Printing.ml Semantic.ml Quads.ml Lexer.ml Parser.ml Blocks.ml     \
+  ControlFlow.ml SSA.ml                                             \
+  FinalTypes.ml Optimizations.ml Final.ml Main.ml 
 MLIFILES=Hashcons.mli Identifier.mli Error.mli Types.mli Symbol.mli \
   Parser.mli Lexer.mli Blocks.mli
 CMOFILES=$(patsubst %.ml,%.cmo,$(MLFILES))

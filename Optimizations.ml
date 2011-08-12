@@ -20,26 +20,6 @@ let dummy_elimination fun_code =
     done
   in Array.iter dummy_helper fun_code
 
-(*
-(* FIXME : flow graph *)
-let unreachable_code_elimination flow_graph =
-	let length = array.length flow_graph in
-	let reachable = array.make length false in
-	let rec dfs v =
-		if (reachable.(v))
-		then ()
-		else (
-			reachable.(v) <- true;
-			list.iter dfs (flow_graph.(v).children);
-		)
-	in dfs 0;
-	array.iteri (fun i x -> 
-		if (not reachable.(i))
-		then flow_graph.(i) <- {
-			x with code_block = array.make 1 quad_dummy
-		}) flow_graph
-*)
-
 (* Reverse Copy Propagation 
  * IN  : quad_t array array array
  * OUT : quad_t array array array
@@ -92,9 +72,17 @@ let constant_folding fun_code =
         in let c1 = get_constant q1 in
         let c2 = get_constant q2 in
         match (c1,c2) with
-        |(Some(v1), Some(v2))->
-          Hashtbl.add constants_hash e (calc v1 v2);
-          Some (Quad_dummy)
+        |(Some(v1), Some(v2))-> (
+          let res = calc v1 v2 in
+          let stres = string_of_int res in
+          Hashtbl.add constants_hash e res;
+          match e.entry_info with
+          | ENTRY_temporary _ -> Some(Quad_dummy)
+          | ENTRY_variable _
+          | ENTRY_parameter _
+               -> Some (Quad_set (Quad_int stres, e))
+          | _ -> internal "Entry can't be a function"; raise Terminate
+        )
         |(Some v, None) ->
           Some (Quad_calc(op, (Quad_int(string_of_int v)), q2, e))
         |(None, Some v) -> 

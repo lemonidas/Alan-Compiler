@@ -1,4 +1,5 @@
 open Quads
+open Lexer
 open Symbol
 open Types
 open Error
@@ -18,9 +19,8 @@ let lib_functions = ref Sstring.empty
 (* Start code *)
 let starting_code main_label= 
   let start = Printf.sprintf "\
-	xseg\tsegment\tpublic code\n\
-	\t\tcs : xseg, ds : xseg, ss : xseg\n\
-	\tassume\n\
+	xseg\tsegment\tpublic 'code'\n\
+	\tassume\tcs : xseg, ds : xseg, ss : xseg\n\
 	\torg\t100h\n\
 	main\tproc\tnear\n\
 	\tcall\tnear ptr %s\n\
@@ -82,7 +82,8 @@ let endof p =
 let find_single_parameter_size ent =
 	match ent.entry_info with
 	| ENTRY_parameter (info) ->
-		sizeOfType(info.parameter_type)
+    if (info.parameter_mode = PASS_BY_REFERENCE) then 2 
+    else sizeOfType(info.parameter_type)
 	| _ -> internal "Function parameter not a parameter"; raise Terminate
 
 (* Find the size of the paremeters of a function f *)
@@ -101,12 +102,13 @@ let label f n =
 
 (* Update Links *)
 let update_AL callee called =
-	if (callee.entry_scope.sco_nesting < called.entry_scope.sco_nesting)
+	if (callee.entry_scope.sco_nesting < called.entry_scope.sco_nesting || 
+      called.entry_scope.sco_nesting = max_int )
 	then 
     [Push (Register Bp)]
 	else if (callee.entry_scope.sco_nesting = called.entry_scope.sco_nesting)
 	then 
-    [Push (Mem_loc ("word", Bp, 4))]
+    [Push (Register Ax); Mov (Register Ax, Mem_loc ("word", Bp, 4))]
 	else 
 		let n = callee.entry_scope.sco_nesting - called.entry_scope.sco_nesting in
 		let rec walk i acc =
@@ -174,7 +176,7 @@ let rec load reg q =
 		match ((local ent), mode) with
 		|(true,true) ->
       List.rev (* Everything must be in reverse order! *)
-      [ Mov (Register Si, Mem_loc ("word", Si, offset));
+      [ Mov (Register Si, Mem_loc ("word", Bp, offset));
         Mov (Register reg, Mem_loc (size, Si, 0)) ]
 		|(true,false) ->
       [ Mov (Register reg, Mem_loc (size, Bp, offset)) ]
@@ -270,14 +272,14 @@ let final_t_of_quad = function
 	 	|"+" ->
       flatten_rev [] 
       [ load Ax q1;
-        load Dx q2;
-        [Add (Action_reg Ax, Action_reg Dx)];
+        load Cx q2;
+        [Add (Action_reg Ax, Action_reg Cx)];
         store Ax e ]
 	 	|"-" ->
       flatten_rev []
       [ load Ax q1;
-        load Dx q2;
-        [Sub (Action_reg Ax, Action_reg Dx)];
+        load Cx q2;
+        [Sub (Action_reg Ax, Action_reg Cx)];
         store Ax e ]
 	 	|"*" ->
       flatten_rev []
@@ -288,14 +290,14 @@ let final_t_of_quad = function
 	 	|"/" ->
       flatten_rev []
       [ load Ax q1;
-        [Pwd];
+        [Cwd];
         load Cx q2;
         [IDiv Cx];
         store Ax e ]
 	 	|"%" ->
       flatten_rev [] 
       [ load Ax q1;
-        [Pwd];
+        [Cwd];
         load Cx q2;
         [IDiv Cx];
         store Dx e ]
@@ -314,8 +316,8 @@ let final_t_of_quad = function
 			|_ -> internal "Not a comparator"; raise Terminate
     in flatten_rev []
       [ load Ax q1;
-        load Dx q2;
-        [Cmp (Ax,Dx)];
+        load Cx q2;
+        [Cmp (Ax,Cx)];
         [Cond_jump (jmp, (label (Stack.top func_stack) (!n)))] ]
 		end
 	|Quad_jump(z)->
@@ -335,6 +337,7 @@ let final_t_of_quad = function
     let endp = (Printf.sprintf "%s\tendp\n" (get_name f)) in
     flatten_rev [] 
     [ [Label (endof f)];
+      [Mov (Register Sp, Register Bp)];
       [Pop Bp];
       [Ret];
       [Misc endp] ]
@@ -428,7 +431,53 @@ let output_final_code out_chan fun_code =
 	let i = ref 0 in
 	let output_single_string str =
 		incr(i);
-		Printf.fprintf out_chan "@str%d\tdb\t'%s'\n" !i str
+    (* Handle escape sequences in strings *)
+    let base = List.rev (Lexer.explode "\tdb '") in
+    let handle_escapes str =
+      let char_list = explode str in
+      let rec delete_empty_strings char_list acc =  
+        match char_list with 
+        | [] -> implode acc
+        | ('\n'::'\''::'\''::' '::'b'::'d'::'\t'::t) -> 
+          delete_empty_strings t acc
+        | (h::t) -> 
+          delete_empty_strings t (h::acc) in
+      let rec parse_char_list acc lst = 
+        match lst with
+        | [] -> 
+          let tail_lst = List.rev (explode "'\n\tdb 0\n") in
+          delete_empty_strings (tail_lst@acc) []
+        | ('\\'::'t'::t) ->
+          let to_add = List.rev (explode "'\n\tdb 9\n\tdb '") in
+          parse_char_list (to_add @ acc) t 
+        | ('\\'::'n'::t) ->
+          let to_add = List.rev (explode "'\n\tdb 10\n\tdb '") in
+          parse_char_list (to_add @ acc) t 
+        | ('\\'::'r'::t) ->
+          let to_add = List.rev (explode "'\n\tdb 13\n\tdb '") in
+          parse_char_list (to_add @ acc) t 
+        | ('\\'::'0'::t) ->
+          let to_add = List.rev (explode "'\n\tdb 0\n\tdb '") in
+          parse_char_list (to_add @ acc) t 
+        | ('\\'::'\\'::t) ->
+          let to_add = List.rev (explode "'\n\tdb \\\n\tdb '") in
+          parse_char_list (to_add @ acc) t 
+        | ('\\'::'\''::t) ->
+          let to_add = List.rev (explode "'\n\tdb 39\n\tdb '") in
+          parse_char_list (to_add @ acc) t 
+        | ('\\'::'"'::t) ->
+          let to_add = List.rev (explode "'\n\tdb 34\n\tdb '") in
+          parse_char_list (to_add @ acc) t 
+        | ('\\'::'x'::n1::n2::t) ->
+          let code = (get_hex_value n1 * 16 + get_hex_value n2) in
+          let to_add_str = Printf.sprintf "'\n\tdb %d\n\tdb '" code in
+          let to_add = List.rev (explode to_add_str) in
+          parse_char_list (to_add @ acc) t
+        | (h::t) ->
+          parse_char_list (h::acc) t in (* End parse_char*)
+      parse_char_list base char_list in
+    let asm_string = handle_escapes str in
+		Printf.fprintf out_chan "@str%d%s" !i asm_string
 	in Queue.iter output_single_string string_queue;
 	Queue.clear string_queue;
 

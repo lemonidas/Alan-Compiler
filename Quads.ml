@@ -137,7 +137,7 @@ let handle_expression op e1 e2 (sp,ep) =
 	let t2 = get_type e2.place in
 	if (check_types op t1 t2 sp ep)
 	then let temp = newTemporary t1 in {
-		code  =	Quad_calc(op,e1.place, e2.place, temp)::(e1.code)@(e2.code);
+		code  =	Quad_calc(op,e1.place, e2.place, temp)::(e2.code)@(e1.code);
 		place =	Quad_entry(temp);
 	}
 	else return_null ()

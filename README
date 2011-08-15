@@ -12,3 +12,4 @@ Optimizations:
 -Local Copy Propagation
 -Reverse Copy Propagation
 -Unreachable Code Elimination
+-Consecutive Load/Store Deletions

@@ -56,8 +56,8 @@ let get_hex_value x =
 	if (x>='0' && x<='9')
 	then Char.code x - Char.code '0'
 	else if (x>='A' && x <= 'F')
-	then Char.code x - Char.code 'A'
-	else Char.code x - Char.code 'a'
+	then Char.code x - Char.code 'A' + 10
+	else Char.code x - Char.code 'a' + 10
 
 let parse_hex str =
 	let h1 = get_hex_value str.[2] in
@@ -75,6 +75,7 @@ let de_escape str =
 				|'n' -> loop (i+2) ('\n'::acc)
 				|'r' -> loop (i+2) ('\r'::acc)
 				|'t' -> loop (i+2) ('\t'::acc)
+        |'0' -> loop (i+2) ((Char.chr 0)::acc)
 				|'x' ->
 					if ((is_hex str.[i+2]) && (is_hex str.[i+3]))
 					then 
@@ -175,6 +176,7 @@ and parse_char = parse
 	|'\\' 'n' '\''			{T_Char("\\n","\n")}
 	|'\\' 'r' '\''			{T_Char("\\r","\r")}
 	|'\\' 't' '\''			{T_Char("\\t","\t")}
+  |'\\' '0' '\''      {T_Char("\\0","\000")}
 	|eof					{fatal "Unterminated character at line: %d." lexbuf.lex_curr_p.pos_lnum; T_Eof}
 	|_ '\'' as c			{let ch = implode [c.[0]] in T_Char(ch,ch)}
 	|_						{

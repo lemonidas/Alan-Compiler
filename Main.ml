@@ -107,5 +107,5 @@ let main =
 			let base = String.sub str 0 ((String.length str) - 5) in
 			let imm_channel = open_out (base^".imm") in (
 			Blocks.output_block_code imm_channel block_code;
-			output_final_code (open_out (base^".asm")) block_code;
+			output_final_code (open_out (base^".asm")) block_code (!optimizations);
 			)

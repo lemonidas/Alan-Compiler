@@ -396,7 +396,7 @@ let final_t_of_quad = function
  * IN  : quad_t array array array, out_channel
  * OUT : final_t list
  *)
-let output_final_code out_chan fun_code =
+let output_final_code out_chan fun_code optimize =
 	
   (* First passage to register all the functions with their respecting labels 
    * All Quad_unit are the first quads of each block... *)
@@ -439,12 +439,18 @@ let output_final_code out_chan fun_code =
   in let low_level_code = 
     List.rev (Array.fold_left 
       (fun acc block -> (convert_single_fun block) @ acc) [] fun_code) in
+
+  (* Optimize low_level code *)
+  let optimized = 
+    if (optimize) 
+    then FinalOptimizations.optimize low_level_code 
+    else low_level_code in
     
   (* Output low_level code *)
   List.iter 
     (fun final -> 
       Printf.fprintf out_chan "%s" (string_of_final_t final)
-    ) low_level_code;
+    ) optimized;
 
 	(* Iterate through all strings to output them *)
 	let i = ref 0 in

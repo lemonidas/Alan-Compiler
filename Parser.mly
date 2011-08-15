@@ -46,50 +46,50 @@ let rec registerFunction id param_list ret_type sc=
 let registerLibrary() =
 	let p = registerFunction "writeInteger" 	
 		[("n", TYPE_int, PASS_BY_VALUE)] 
-		TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "writeByte" 	
 		[("b", TYPE_byte, PASS_BY_VALUE)] 
-		TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "writeChar" 	
 		[("b", TYPE_byte, PASS_BY_VALUE)] 
-		TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "writeString" 	
 		[("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)] 
-		TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "readInteger" 	
 		[] 
-		TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_int true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "readByte" 	
 		[] 
-		TYPE_byte false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_byte true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "readChar" 	
 		[] 
-		TYPE_byte false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_byte true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "readString" 	
 		[("n", TYPE_int, PASS_BY_VALUE);
 		("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-	 	TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+	 	TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "extend" 
 		[("b",TYPE_byte, PASS_BY_VALUE)] 
-		TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_int true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "shrink" 
 		[("i", TYPE_int, PASS_BY_VALUE)] 
-		TYPE_byte false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_byte true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "strlen" 
 		[("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)] 
-		TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+		TYPE_int true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "strcmp"
 		 [("s1", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
 		 ("s2", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-		 TYPE_int false in p.entry_scope.sco_nesting <- max_int;
+		 TYPE_int true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "strcpy"
 		 [("trg", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
 		 ("src", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-		 TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+		 TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
 	let p = registerFunction "strcat"
 		 [("trg", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
 		 ("src", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-		 TYPE_proc false in p.entry_scope.sco_nesting <- max_int;
+		 TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
 ;;
 
 %}
@@ -256,7 +256,7 @@ var_def:			T_Id T_Colon data_type T_Semicolon {
 
 stmt:				T_Semicolon {[]}
 					|l_value T_Set expr T_Semicolon {
-						handle_assignment $1 $3 (get_binop_pos())
+						handle_assignment (dereference $1) $3 (get_binop_pos())
 					}
 					|compound_stmt {$1}
 					|func_call T_Semicolon {
@@ -334,7 +334,7 @@ func_call:			T_Id T_LParen T_RParen {
 					}
 					|T_Id T_LParen expr_list T_RParen {
 						let pos = Parsing.symbol_start_pos () in
-						handle_func_call $1 pos (List.rev $3)
+						handle_func_call $1 pos $3
 					};
 
 expr_list:			expr{[$1]}

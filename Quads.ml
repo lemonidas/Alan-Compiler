@@ -27,8 +27,8 @@ type quad_t =
 	|Quad_dummy (* For optimization purposes *)
 	|Quad_unit of Symbol.entry
 	|Quad_endu of Symbol.entry
-	|Quad_calc of string * quad_elem_t * quad_elem_t * Symbol.entry
-	|Quad_set of quad_elem_t * Symbol.entry
+	|Quad_calc of string * quad_elem_t * quad_elem_t * quad_elem_t
+	|Quad_set of quad_elem_t * quad_elem_t
 	|Quad_array of quad_elem_t * quad_elem_t * Symbol.entry
 	|Quad_cond of string * quad_elem_t * quad_elem_t * (int ref)
 	|Quad_jump of (int ref)
@@ -67,16 +67,16 @@ let string_of_quad_t = function
 	|Quad_endu(ent) -> 
 		Printf.sprintf "endu, %s, -, -" 
 		(id_name ent.entry_id)
-	|Quad_calc (op, q1, q2, ent) ->
+	|Quad_calc (op, q1, q2, q) ->
 		Printf.sprintf "%s, %s, %s, %s"
 			(op)
 			(string_of_quad_elem_t q1)
 			(string_of_quad_elem_t q2)
-			(id_name ent.entry_id)
-	|Quad_set(q,ent) ->
+			(string_of_quad_elem_t q)
+	|Quad_set(q,qr) ->
 		Printf.sprintf ":=, %s, -, %s" 
 			(string_of_quad_elem_t q)
-			(id_name ent.entry_id)
+			(string_of_quad_elem_t qr)
 	|Quad_array(q1, q2, e) ->
 		Printf.sprintf "array, %s, %s, %s"
 			(string_of_quad_elem_t q1)
@@ -110,10 +110,15 @@ let get_type = function
 	|Quad_entry (ent) -> 
 		match ent.entry_info with
 		|ENTRY_none -> TYPE_none
-		|ENTRY_variable (info) -> info.variable_type
-		|ENTRY_parameter (info) -> info.parameter_type
-		|ENTRY_function (info) -> info.function_result
-		|ENTRY_temporary (info) -> info.temporary_type
+		|ENTRY_variable (info) -> extractType info.variable_type
+		|ENTRY_parameter (info) -> extractType info.parameter_type
+		|ENTRY_function (info) -> extractType info.function_result
+		|ENTRY_temporary (info) -> extractType info.temporary_type
+
+let get_size q = 
+  match (get_type q) with
+  | TYPE_byte -> "byte"
+  | _ -> "word"
 
 let extract_entry = function
 	|Quad_entry (ent) -> ent
@@ -137,7 +142,7 @@ let handle_expression op e1 e2 (sp,ep) =
 	let t2 = get_type e2.place in
 	if (check_types op t1 t2 sp ep)
 	then let temp = newTemporary t1 in {
-		code  =	Quad_calc(op,e1.place, e2.place, temp)::(e2.code)@(e1.code);
+		code  =	Quad_calc(op,e1.place, e2.place, Quad_entry(temp))::(e2.code)@(e1.code);
 		place =	Quad_entry(temp);
 	}
 	else return_null ()
@@ -151,8 +156,8 @@ let handle_unary_expression op exp pos =
 			exp
 		|"-" -> 
 			let temp = newTemporary TYPE_int in
-			let new_quad = Quad_calc("-",Quad_int("0"), exp.place, temp) in
-				{ code = (new_quad :: exp.code); place =  Quad_entry(temp) }
+			let new_quad = Quad_calc("-",Quad_int("0"), exp.place, Quad_entry(temp)) in
+				{ code = (new_quad :: exp.code); place = Quad_entry(temp) }
 		|_ -> internal "wrong unary expression"; raise Terminate
 	else (
 		print_unary_type_error op t pos;
@@ -172,7 +177,8 @@ let handle_array_lvalue id pos context q_t =
 	if (t==TYPE_int) 
 		then let (ent, l_typ, correct) = check_lvalue id pos true in
 		if (correct) 
-			then let temp = newTemporary l_typ in
+      (* Type of $n as array must allways be int *)
+			then let temp = newTemporary (TYPE_pointer l_typ)  in
 			let new_quad =
 				 Quad_array(Quad_entry(ent), q_t.place, temp) in
 			{code = new_quad::q_t.code ; place = Quad_entry(temp)}
@@ -186,43 +192,69 @@ let handle_array_lvalue id pos context q_t =
 
 (* Ugliest function yet - Handle function calls *)
 let handle_func_call id pos expr_list =
+
+  (* Get function entry from id *)
 	let ent = lookupEntry (id_make id) LOOKUP_ALL_SCOPES true in
-	let rec create_code_list acc = function
-		|([],_,_) -> 
-			acc
-		|(h::t, hp::tp, hq::tq) -> (
-			match hp.entry_info with
-			|ENTRY_parameter (par_info) ->
-				let new_quad = Quad_par (hq,par_info.parameter_mode) in
-				create_code_list (new_quad::h@acc) (t, tp, tq)
-			|_ -> internal "Function parameter not a parameter???";
-				raise Terminate	
-			)
-		|_ -> internal "Create code should be called with correct args";
-			raise Terminate		
-	in let rec unzip_expr_list acc1 acc2 acc3 = function
-		|[] ->
-			 (acc1, List.rev acc2, List.rev acc3)
-		|(h::t) ->
-			unzip_expr_list (h.code::acc1) (h.place::acc2)
-						 ((get_type h.place)::acc3) t
-	in let (code_list, param_list, type_list) = 
+  
+  (* Unzip expression list 
+   * Takes expression list - reverse order 
+   * Returns a triplet : code, place and types, correct order *)
+  let rec unzip_expr_list code_acc place_acc type_acc = function
+    | [] -> 
+        (code_acc, place_acc, type_acc)
+    | (h::t) ->
+        unzip_expr_list (h.code :: code_acc) (h.place::place_acc)
+          ((get_type h.place)::type_acc) t in
+
+  (* Create Par quads 
+   * Takes function information and parameter list 
+   * Returns a list of Par Quads - reverse order *)
+  let rec create_par_quads acc = function
+    | (_,[]) ->
+      acc
+    | (hfi::tfi, hp::tp) -> 
+      begin
+        flush_all();
+        match hfi.entry_info with
+        | ENTRY_parameter (par_info) ->
+          let new_quad = Quad_par (hp, par_info.parameter_mode) in
+          create_par_quads (new_quad::acc) (tfi, tp)
+        | _ -> 
+          internal "Function parameter not a parameter"; 
+          raise Terminate
+      end
+    | _ -> 
+      internal "Less args in create_par_quads"; 
+      raise Terminate in
+
+  (* Reverse the order of the code_list *)
+  let rec reverse_code_list acc = function
+    | [] -> acc
+    | (h::t) -> reverse_code_list (h@acc) t in
+  
+  (* Extract expr_list information *)        
+	let (code_list, param_list, type_list) = 
 		unzip_expr_list [] [] []  expr_list in
+
 	match ent.entry_info with
 	|ENTRY_function (info) ->
+    (* Check for semantic correctness *)
 		if (check_func_call info id type_list pos)
 		then (
-			let new_code = create_code_list [] 
-				(code_list, info.function_paramlist, param_list)
-			in 
+  
+      (* Generate par_quads *)
+			let par_code = create_par_quads [] 
+				(info.function_paramlist, param_list) in 
+
+      (* Create code based on function result *)
 			match (info.function_result) with
 			|TYPE_proc ->
-				{code = Quad_call(ent)::new_code; place = Quad_none}
+				{code = Quad_call(ent)::par_code@(reverse_code_list [] code_list); place = Quad_none}
 			|TYPE_int
 			|TYPE_byte -> 
 				let temp = newTemporary info.function_result in 
 				let par_q = Quad_par ( Quad_entry(temp) , PASS_RET) in {
-					code = Quad_call(ent)::par_q::new_code;
+					code = Quad_call(ent)::par_q::par_code@(reverse_code_list [] code_list);
 					place = Quad_entry(temp)
 				}
 			|_ -> return_null ()					
@@ -291,7 +323,8 @@ let handle_assignment lval expr (sp,ep) =
 	then 
 		let new_quad = 
 			match lval.place with
-			|Quad_entry (ent) -> (Quad_set(expr.place,ent))
+      |Quad_valof (_)
+			|Quad_entry (_) -> (Quad_set(expr.place,lval.place))    
 			|_ -> internal "Assigning to something not an entry";
 				raise Terminate
 		in new_quad::lval.code@expr.code
@@ -324,7 +357,7 @@ let handle_return_expr expr pos=
 	let t = get_type expr.place in
 	if (equalType t !currentScope.ret_type) 
 	then let ret_entry = lookupEntry (id_make "$$") LOOKUP_CURRENT_SCOPE true
-		in Quad_ret ::(Quad_set(expr.place, ret_entry)):: expr.code
+		in Quad_ret ::(Quad_set(expr.place, Quad_entry(ret_entry))):: expr.code
 	else (
 		error "Attempting to return %s when %s was expected, \
 			in line %d, position %d" 

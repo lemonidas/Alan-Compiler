@@ -30,10 +30,10 @@ let immediate_backward_propagation fun_code =
       let length = Array.length block in
       for i = 1 to length - 1 do
         match (block.(i-1),block.(i)) with
-        |(Quad_calc(op,q1,q2,ec), Quad_set (Quad_entry(es), e))->
+        |(Quad_calc(op,q1,q2,Quad_entry(ec)), Quad_set (Quad_entry(es), q))->
           if (es==ec)
           then (
-            block.(i-1) <- Quad_calc(op,q1,q2, e);
+            block.(i-1) <- Quad_calc(op,q1,q2, q);
             block.(i) <- Quad_dummy
           )
         |_ -> ()
@@ -60,7 +60,7 @@ let constant_folding fun_code =
           Not_found -> None
     in let propagate_single_quad quad = 
       match quad with
-      |Quad_calc(op, q1, q2, e) ->
+      |Quad_calc(op, q1, q2, Quad_entry(e)) ->
         begin
         let calc = match op with
           |"+" -> (+)
@@ -80,13 +80,13 @@ let constant_folding fun_code =
           | ENTRY_temporary _ -> Some(Quad_dummy)
           | ENTRY_variable _
           | ENTRY_parameter _
-               -> Some (Quad_set (Quad_int stres, e))
+               -> Some (Quad_set (Quad_int stres, Quad_entry(e)))
           | _ -> internal "Entry can't be a function"; raise Terminate
         )
         |(Some v, None) ->
-          Some (Quad_calc(op, (Quad_int(string_of_int v)), q2, e))
+          Some (Quad_calc(op, (Quad_int(string_of_int v)), q2, Quad_entry(e)))
         |(None, Some v) -> 
-          Some (Quad_calc(op, q1, (Quad_int(string_of_int v)), e))
+          Some (Quad_calc(op, q1, (Quad_int(string_of_int v)), Quad_entry(e)))
         |(None, None) -> None
         end	
       |Quad_cond (op, q1, q2, e) ->
@@ -147,17 +147,17 @@ let local_copy_propagation block =
 			Not_found -> (q,false)
 	in for i = 0 to n-1 do
 		match block.(i) with
-		| Quad_calc (op, q1, q2, e) ->
+		| Quad_calc (op, q1, q2, q) ->
         let (new_q1, changed_1) = copy_value q1 in
         let (new_q2, changed_2) = copy_value q2 in
         if (changed_1 || changed_2) then (
-          block.(i) <- Quad_calc(op, new_q1, new_q2, e)
+          block.(i) <- Quad_calc(op, new_q1, new_q2, q)
         );
-        Hashtbl.remove local_cp_hash (Quad_entry(e))
-		| Quad_set (q,e) ->
-        if(is_entry q)
-        then Hashtbl.replace local_cp_hash (Quad_entry(e)) q
-        else Hashtbl.remove local_cp_hash (Quad_entry(e))
+        Hashtbl.remove local_cp_hash q
+		| Quad_set (q, qr) ->
+        if(is_entry q && is_entry qr)
+        then Hashtbl.replace local_cp_hash qr q
+        else Hashtbl.remove local_cp_hash qr
 		| Quad_array (q1, q2, e) ->
         let (new_q2, changed) = copy_value q2 in
         if (changed) then (

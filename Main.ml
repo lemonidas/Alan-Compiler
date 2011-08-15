@@ -92,7 +92,7 @@ let main =
   let block_code = Blocks.blocks_of_quad_t_list code_list in
 	let block_code = optimize block_code in
   let flowgraph = ControlFlow.flowgraph_t_of_function_block_t block_code.(0) in
-  ignore (SSA.compute_dominating_frontier flowgraph);
+  (*ignore (SSA.compute_dominating_frontier flowgraph);*)
 	match !mode with
 	|Intermediate ->
 		Blocks.output_block_code stdout block_code

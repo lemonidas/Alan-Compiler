@@ -16,6 +16,7 @@ let rec string_of_typ typ =
 	|TYPE_proc -> "proc"
 	|TYPE_array(et,sz) when sz > 0 -> String.concat "" [(string_of_typ et);("[");(string_of_int sz);("]")]
 	|TYPE_array(et,sz) -> String.concat "" [(string_of_typ et);("[]")]
+  |TYPE_pointer pointed -> Printf.sprintf "Pointer @%s" (string_of_typ pointed)
 
 let string_of_pass_mode = function
 	|PASS_BY_VALUE -> "V"
@@ -38,6 +39,8 @@ let rec pretty_typ ppf typ =
         fprintf ppf " []"
   | TYPE_proc ->
       fprintf ppf "proc"
+  | TYPE_pointer pointed ->
+      fprintf ppf "pointer @%s" (string_of_typ pointed)
 
 let pretty_mode ppf mode =
   match mode with

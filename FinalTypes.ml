@@ -1,5 +1,6 @@
 (* Final Types *)
-type register = Ax | Bx | Cx | Dx | Al | Ah | Di | Si | Bp | Sp
+type register = Ax | Bx | Cx | Dx | Di | Si | Bp | Sp
+              | Al | Ah | Bl | Bh | Cl | Ch | Dl | Dh
 
 let string_of_register = function
 	| Ax -> "ax"
@@ -12,6 +13,12 @@ let string_of_register = function
 	| Si -> "si"
 	| Bp -> "bp"
 	| Sp -> "sp"
+  | Bl -> "bl"
+  | Bh -> "bh"
+  | Cl -> "cl"
+  | Ch -> "ch"
+  | Dl -> "dl"
+  | Dh -> "dh"
 
 type action_arg = 
 	|Action_reg of register
@@ -40,6 +47,15 @@ let string_of_mem_loc = function
 	| String_addr str -> 
       Printf.sprintf "byte ptr %s" str
 	| Num str -> str
+
+let get_register size reg =
+  match (size,reg) with 
+  | ("word",_) -> reg
+  | ("byte",Ax) -> Al
+  | ("byte",Bx) -> Bl
+  | ("byte",Cx) -> Cl
+  | ("byte",Dx) -> Dl
+  | _ -> reg
 
 type final_t =
 	| Start of string

@@ -107,7 +107,7 @@ let closeScope f =
   begin
 	match f.entry_info with
   	| ENTRY_function(info) ->
-		info.function_negoffs <- sco.sco_negofs
+		  info.function_negoffs <- sco.sco_negofs;
   	| _ -> internal "Function not a function!"
   end;
   let manyentry e = H.remove !tab e.entry_id in

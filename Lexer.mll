@@ -76,6 +76,8 @@ let de_escape str =
 				|'r' -> loop (i+2) ('\r'::acc)
 				|'t' -> loop (i+2) ('\t'::acc)
         |'0' -> loop (i+2) ((Char.chr 0)::acc)
+        |'\'' -> loop (i+2) ('\''::acc)
+        |'"' -> loop (i+2) ('"'::acc)
 				|'x' ->
 					if ((is_hex str.[i+2]) && (is_hex str.[i+3]))
 					then 

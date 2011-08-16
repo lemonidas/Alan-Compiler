@@ -192,7 +192,7 @@ let rec load reg q =
       ( (Mov (Register reg, Mem_loc (size, Si, offset)))::ar )
 		)
 	|Quad_valof (ent) ->
-    let size = "word" in
+    let size = size_description (extractType (get_type q))  in
     (Mov (Register reg, Mem_loc (size, Di, 0)))::
     (load Di (Quad_entry(ent)))
 
@@ -244,7 +244,7 @@ let store reg q =
         ( Mov (Mem_loc (size, Si, offset), Register (reg)) )::ar
     )
   | Quad_valof ent ->
-    let (size, offset, mode) = get_info ent.entry_info in
+    let size = size_description (extractType (get_type q))  in
     (Mov (Mem_loc (size, Di, 0), Register reg))::
     (load Di (Quad_entry(ent)))
     

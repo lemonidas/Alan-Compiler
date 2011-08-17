@@ -1,3 +1,4 @@
+open QuadTypes
 open Quads
 
 type basic_block_t = quad_t array

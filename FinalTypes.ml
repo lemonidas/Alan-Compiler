@@ -1,7 +1,10 @@
 (* Final Types *)
+
+(* Registers *)
 type register = Ax | Bx | Cx | Dx | Di | Si | Bp | Sp
               | Al | Ah | Bl | Bh | Cl | Ch | Dl | Dh
 
+(* Convert register to string *)
 let string_of_register = function
 	| Ax -> "ax"
 	| Bx -> "bx"
@@ -20,6 +23,7 @@ let string_of_register = function
   | Dl -> "dl"
   | Dh -> "dh"
 
+(* In calculations we can have either registers or constants *)
 type action_arg = 
 	|Action_reg of register
 	|Constant of int
@@ -28,11 +32,12 @@ let string_of_action_arg = function
 	| Action_reg reg -> string_of_register reg
 	| Constant num -> (string_of_int num)
 
+(* For Mov, Lea, etc we have a memory_location *)
 type mem_loc = 
-	| Register of register 
-	| Mem_loc of (string * register * int)
-	| String_addr of string
-	| Num of string
+	| Register of register                  (* Register               *)
+	| Mem_loc of (string * register * int)  (* string ptr [reg + int] *)
+	| String_addr of string                 (* @strx                  *)
+	| Num of string                         (* Constant               *)
 
 let string_of_mem_loc = function
 	| Register reg -> (string_of_register reg)
@@ -48,15 +53,16 @@ let string_of_mem_loc = function
       Printf.sprintf "byte ptr %s" str
 	| Num str -> str
 
+(* Convert register to its smaller counterpart when chars are handled *)
 let get_register size reg =
   match (size,reg) with 
-  | ("word",_) -> reg
   | ("byte",Ax) -> Al
   | ("byte",Bx) -> Bl
   | ("byte",Cx) -> Cl
   | ("byte",Dx) -> Dl
   | _ -> reg
 
+(* Low Level Intermediate Code - 1 Assembly Instruction/Label per Constructor *)
 type final_t =
 	| Start of string
 	| End of string

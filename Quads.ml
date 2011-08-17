@@ -5,48 +5,9 @@ open Printing
 open Identifier
 open Semantic
 open Lexing
+open QuadTypes
 
-(* Necessary Type Declarations *)
-type quad_elem_t =
-	|Quad_none
-	|Quad_entry of Symbol.entry
-	|Quad_valof of Symbol.entry
-	|Quad_int of string
-	|Quad_char of string
-	|Quad_string of string	
-
-let string_of_quad_elem_t = function
-	|Quad_none -> ""
-	|Quad_entry(ent) -> id_name ent.entry_id
-	|Quad_valof(ent) -> Printf.sprintf "[%s]" (id_name ent.entry_id)
-	|Quad_int(str) -> str
-	|Quad_char(str) -> str
-	|Quad_string(str) -> Printf.sprintf "\"%s\"" str
-
-type quad_t =
-	|Quad_dummy (* For optimization purposes *)
-	|Quad_unit of Symbol.entry
-	|Quad_endu of Symbol.entry
-	|Quad_calc of string * quad_elem_t * quad_elem_t * quad_elem_t
-	|Quad_set of quad_elem_t * quad_elem_t
-	|Quad_array of quad_elem_t * quad_elem_t * Symbol.entry
-	|Quad_cond of string * quad_elem_t * quad_elem_t * (int ref)
-	|Quad_jump of (int ref)
-	|Quad_call of Symbol.entry
-	|Quad_par of quad_elem_t * Symbol.pass_mode
-	|Quad_ret
-	
-type expr_ret_type = {
-	code : quad_t list;
-	place : quad_elem_t;
-}
-
-type cond_ret_type = {
-	c_code : quad_t list;	
-	q_true: int ref list;
-	q_false : int ref list;
-}
-
+(* Small Function To Check if Quad is en entry or not *)
 let is_entry quad =
 	match quad with
 	| Quad_entry(_) -> true
@@ -58,6 +19,42 @@ let dereference x =
 	|(Quad_array(_, _, ent)::_) ->
 		{x with place = Quad_valof(ent)}
 	|_ -> x
+
+(* Get Type of a quad_elem_t *)
+let get_type = function
+	|Quad_none -> TYPE_none
+	|Quad_int (_) -> TYPE_int
+	|Quad_char(_) -> TYPE_byte
+	|Quad_string (str) -> TYPE_array(TYPE_byte, String.length str)
+	|Quad_valof (ent) 
+	|Quad_entry (ent) -> 
+		match ent.entry_info with
+		|ENTRY_none -> TYPE_none
+		|ENTRY_variable (info) -> extractType info.variable_type
+		|ENTRY_parameter (info) -> extractType info.parameter_type
+		|ENTRY_function (info) -> extractType info.function_result
+		|ENTRY_temporary (info) -> extractType info.temporary_type
+
+(* Get Size Description from a quad_elem_t *)
+let get_size q = 
+  match (get_type q) with
+  | TYPE_byte -> "byte"
+  | _ -> "word"
+
+(* Extract the Entry from a quad_elem_t *)
+let extract_entry = function
+	|Quad_entry (ent) -> ent
+	|Quad_valof (ent) -> ent
+	|_ -> internal "Not an entry"; raise Terminate
+
+(* Get a string description of a quad_elem_t *)
+let get_id = function
+	|Quad_none -> internal "proc func call"; raise Terminate
+	|Quad_int (i) -> i
+	|Quad_char (c) -> c
+	|Quad_string (s) -> s
+	|Quad_valof (ent)
+	|Quad_entry (ent) -> id_name ent.entry_id
 
 (* Main function to convert a quad to a string *)
 let string_of_quad_t = function
@@ -100,54 +97,27 @@ let string_of_quad_t = function
 	|Quad_ret -> "ret, -, -, -"	
 	|Quad_dummy -> ""
 
-(* Few small functions for compact code later *)
-let get_type = function
-	|Quad_none -> TYPE_none
-	|Quad_int (_) -> TYPE_int
-	|Quad_char(_) -> TYPE_byte
-	|Quad_string (str) -> TYPE_array(TYPE_byte, String.length str)
-	|Quad_valof (ent) 
-	|Quad_entry (ent) -> 
-		match ent.entry_info with
-		|ENTRY_none -> TYPE_none
-		|ENTRY_variable (info) -> extractType info.variable_type
-		|ENTRY_parameter (info) -> extractType info.parameter_type
-		|ENTRY_function (info) -> extractType info.function_result
-		|ENTRY_temporary (info) -> extractType info.temporary_type
+(* ----------------------------------------------------------------------------- *)
 
-let get_size q = 
-  match (get_type q) with
-  | TYPE_byte -> "byte"
-  | _ -> "word"
+(* Functions to generate intermediate code in the parser *)
 
-let extract_entry = function
-	|Quad_entry (ent) -> ent
-	|Quad_valof (ent) -> ent
-	|_ -> internal "Not an entry"; raise Terminate
+(* IMPORTANT: Intermediate code in the lists must be inverted *)
 
-let get_id = function
-	|Quad_none -> internal "proc func call"; raise Terminate
-	|Quad_int (i) -> i
-	|Quad_char (c) -> c
-	|Quad_string (s) -> s
-	|Quad_valof (ent)
-	|Quad_entry (ent) -> id_name ent.entry_id
-
-(* Returning a "null" quad - error handling mostly *)
-let return_null () = {code = []; place = Quad_none}
-
-(* Handle an arithmetical expression *)
+(* Handle an arithmetical expression 
+ * Get the 2 types, semantically check them and create the intermediate code 
+ * required *)
 let handle_expression op e1 e2 (sp,ep) =
 	let t1 = get_type e1.place in
 	let t2 = get_type e2.place in
 	if (check_types op t1 t2 sp ep)
 	then let temp = newTemporary t1 in {
-		code  =	Quad_calc(op,e1.place, e2.place, Quad_entry(temp))::(e2.code)@(e1.code);
+		code  = Quad_calc(op,e1.place, e2.place, Quad_entry(temp))
+            ::(e2.code)@(e1.code);
 		place =	Quad_entry(temp);
 	}
 	else return_null ()
 
-(* Handle signs in expressiong *)
+(* Handle signs in expression *)
 let handle_unary_expression op exp pos =
 	let t = get_type exp.place in
 	if (t==TYPE_int) 
@@ -165,19 +135,22 @@ let handle_unary_expression op exp pos =
 	)
 
 (* Handle L-Values *)
+
+(* Non-array l-value needs no code *)
 let handle_simple_lvalue id pos =
 	let (ent, _, correct) = check_lvalue id pos false in
 	if (correct) 
 		then {code = []; place = Quad_entry(ent)}
 	else return_null ()
 
-(* Handle an array lvalue *)
+(* Handle an array lvalue 
+ * Array lvalue needs to be dereferenced *)
 let handle_array_lvalue id pos context q_t =
 	let t = get_type q_t.place in
 	if (t==TYPE_int) 
 		then let (ent, l_typ, correct) = check_lvalue id pos true in
 		if (correct) 
-      (* Type of $n as array must allways be int *)
+      (* The new temporary created is a Pointer to l_typ *)
 			then let temp = newTemporary (TYPE_pointer l_typ)  in
 			let new_quad =
 				 Quad_array(Quad_entry(ent), q_t.place, temp) in
@@ -214,7 +187,6 @@ let handle_func_call id pos expr_list =
       acc
     | (hfi::tfi, hp::tp) -> 
       begin
-        flush_all();
         match hfi.entry_info with
         | ENTRY_parameter (par_info) ->
           let new_quad = Quad_par (hp, par_info.parameter_mode) in
@@ -248,32 +220,39 @@ let handle_func_call id pos expr_list =
 
       (* Create code based on function result *)
 			match (info.function_result) with
-			|TYPE_proc ->
-				{code = Quad_call(ent)::par_code@(reverse_code_list [] code_list); place = Quad_none}
-			|TYPE_int
-			|TYPE_byte -> 
+			| TYPE_proc ->
+				{
+          code = Quad_call(ent)::par_code@(reverse_code_list [] code_list); 
+          place = Quad_none
+        }
+			| TYPE_int
+			| TYPE_byte -> 
 				let temp = newTemporary info.function_result in 
 				let par_q = Quad_par ( Quad_entry(temp) , PASS_RET) in {
 					code = Quad_call(ent)::par_q::par_code@(reverse_code_list [] code_list);
 					place = Quad_entry(temp)
 				}
-			|_ -> return_null ()					
+			| _ -> return_null ()					
 			)
 		else 
 			return_null ()
 	|_ ->		
 		error "Invalid Function call. Identifier %s is not a function \
 			at line %d, position %d."
-		id (pos.pos_lnum) (pos.pos_cnum - pos.pos_bol);
+		  id (pos.pos_lnum) (pos.pos_cnum - pos.pos_bol);
 		return_null ()
 	
 (* Handle Comparisons *)
 let handle_comparison op e1 e2 (sp,ep) =
+  (* First Check the types of the compared things *)
 	let t1 = get_type e1.place in
 	let t2 = get_type e2.place in
 	if (check_types op t1 t2 sp ep) 
 	then
-		let true_ref = ref 2 in
+    (* Invariant for Jumps :
+     * Everything points to the beginning of the next block
+     * with a relative offset. Backpatching is done additively *)
+		let true_ref = ref 2 in 
 		let false_ref = ref 1 in
 		let code_true = (Quad_cond(op, e1.place, e2.place, true_ref))
 		in let code_false = (Quad_jump (false_ref)) in {
@@ -285,9 +264,10 @@ let handle_comparison op e1 e2 (sp,ep) =
 		internal "Can't recover from condition error";
 		raise Terminate
 	)
-;;		(*Error recovery after condition error?*)
 	
-(* Handle boolean values *)
+(* Handle boolean values 
+ * Constant values means no jump in the "opposite" direction 
+ * Extraneous code can be eliminated with dead code elimination optimization *)
 let handle_cond_const is_true = 
 	let x = ref 1 in {
 		c_code = [Quad_jump(x)];
@@ -297,6 +277,9 @@ let handle_cond_const is_true =
 
 (* Handle an "and" cond *)
 let handle_and c1 c2 =
+  (* The "next" quad will be left unchanged for c2 but c1 will point |c2.code| 
+   * later. For immediate evaluation when c1 is false we need to go the end 
+   * of everything, when c1 is true we need to evaluate c2. *)
 	let len = List.length c2.c_code in
 	List.iter (fun x -> x := !x + len) c1.q_false;
 	{ 
@@ -307,6 +290,8 @@ let handle_and c1 c2 =
 
 (* Handle an "or" cond *)
 let handle_or c1 c2 = 
+  (* Similarly, add |c2.code| to the relative jumps in c1 but now the "true" 
+   * condition is the one that can "short-circuit" *)
 	let len = List.length c2.c_code in
 	List.iter (fun x -> x := !x + len) c1.q_true;
 	{
@@ -332,11 +317,16 @@ let handle_assignment lval expr (sp,ep) =
 
 (* Handle if statement *)
 let handle_if_stmt cond stmt =
+  (* An if statement (without an else) is executed when true. Therefore only the
+   * "false" relative jumps are increased by the length of the statement *)
 	let len = List.length stmt in
 	List.iter (fun x -> x := !x + len) cond.q_false;
 	stmt @ cond.c_code
 
 (* Handle if-else statement *)
+(* The true condition is executed directly, and then a jump is added to the end
+ * of the entire code (including the else-part). The false-refs are increased by 
+ * the if-part + 1 (the new jump quad) *)
 let handle_if_else_stmt cond s1 s2 =
 	let l1 = List.length s1 in
 	let l2 = List.length s2 in
@@ -345,6 +335,8 @@ let handle_if_else_stmt cond s1 s2 =
 	s2 @ (new_quad::(s1 @ cond.c_code))
 
 (* Handle while statement *)
+(* The "false" jumps after all the statements plus the jump to the top. The jump to
+ * the top must account for the re-evaluation of the condition *)
 let handle_while_stmt cond stmt = 
 	let l = List.length stmt in
   let lc = List.length cond.c_code in
@@ -352,61 +344,41 @@ let handle_while_stmt cond stmt =
 	let new_quad = Quad_jump (ref (-l-lc)) in
 	new_quad :: (stmt @ cond.c_code)
 
-(* Handle a return expressiong *)
+(* Handle a return expression *)
+(* After semantically checking the return types, and set to "$$" - the extra 
+ * parameter by reference and then return (Quad_ret) *)
 let handle_return_expr expr pos=
 	let t = get_type expr.place in
-	if (equalType t !currentScope.ret_type) 
+	if (equalType t !currentScope.sco_ret_type) 
 	then let ret_entry = lookupEntry (id_make "$$") LOOKUP_CURRENT_SCOPE true
 		in Quad_ret ::(Quad_set(expr.place, Quad_entry(ret_entry))):: expr.code
 	else (
 		error "Attempting to return %s when %s was expected, \
 			in line %d, position %d" 
-			(string_of_typ t) (string_of_typ !currentScope.ret_type)
+			(string_of_typ t) (string_of_typ !currentScope.sco_ret_type)
 			(pos.pos_lnum) (pos.pos_cnum - pos.pos_bol);
 		[]
 	)
 
 (* Proc return *)
+(* Make sure nothing should be returned and return *)
 let handle_return_proc pos =
-	if (equalType TYPE_proc !currentScope.ret_type)
+	if (equalType TYPE_proc !currentScope.sco_ret_type)
 	then
 		[Quad_ret]
 	else (
 		error "Attemping to return proc when %s was expected, \
 			in line %d, position %d"
-			(string_of_typ !currentScope.ret_type)
+			(string_of_typ !currentScope.sco_ret_type)
 			(pos.pos_lnum) (pos.pos_cnum - pos.pos_bol);
 		[]
 	)
 
 (* Function definitions *)
+(* Wrap the body around unit-endu and add the local definitions at the beginning *)
 let handle_func_def id local_def stmt =
 	let ent = lookupEntry (id_make id) LOOKUP_ALL_SCOPES true in
 	let s_quad = Quad_unit(ent) in
 	let e_quad = Quad_endu(ent) in
 	e_quad :: (stmt @ (s_quad :: local_def))
 
-(*Semantic needed here *)
-let check_func_proc func_ret pos =
-	match func_ret.place with
-	|Quad_none -> func_ret.code
-	|Quad_entry(ent) ->
-		error "Function %s has non-proc return value \
-				at line %d, position %d."
-		(id_name ent.entry_id)
-		(pos.pos_lnum) (pos.pos_cnum - pos.pos_bol);
-		[]
-	|_ -> internal "Function returns neither entry or proc"; raise Terminate
-
-let check_func_expr func_ret pos =
-	match func_ret.place with
-	|Quad_entry(_) -> func_ret
-	|Quad_none -> 
-		error "Function has proc return value and is used as an \
-			expression at line %d, position %d"
-		(pos.pos_lnum) (pos.pos_cnum - pos.pos_bol);
-		return_null ()
-	|_ -> internal "Function returns neither entry or proc"; raise Terminate
-
-	
-	

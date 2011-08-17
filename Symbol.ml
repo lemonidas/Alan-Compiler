@@ -22,7 +22,7 @@ type scope = {
   mutable sco_nesting : int;
   mutable sco_entries : entry list;
   mutable sco_negofs : int;
-  ret_type : Types.typ;
+  sco_ret_type : Types.typ;
 }
 
 and variable_info = {
@@ -73,7 +73,7 @@ let the_outer_scope = {
   sco_nesting = 0;
   sco_entries = [];
   sco_negofs = start_negative_offset;
-  ret_type = Types.TYPE_proc;
+  sco_ret_type = Types.TYPE_proc;
 }
 
 let no_entry id = {
@@ -98,7 +98,7 @@ let openScope typ =
     sco_nesting = !currentScope.sco_nesting + 1;
     sco_entries = [];
     sco_negofs = start_negative_offset;
-	ret_type = typ;
+	  sco_ret_type = typ;
   } in
   currentScope := sco
 

@@ -12,7 +12,7 @@ type scope = {
   mutable sco_nesting : int;
   mutable sco_entries : entry list;
   mutable sco_negofs : int;
-  ret_type : Types.typ;
+  sco_ret_type : Types.typ;
 }
 
 and variable_info = {                         (******* Μεταβλητή *******)

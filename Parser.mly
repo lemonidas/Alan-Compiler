@@ -7,6 +7,7 @@ open Identifier
 open Types
 open Symbol
 open Printing
+open QuadTypes
 open Quads
 open Parsing
 open Semantic
@@ -143,12 +144,12 @@ let registerLibrary() =
 %nonassoc T_Not
 
 %start program
-%type <Quads.quad_t list> program
+%type <QuadTypes.quad_t list> program
 %type <expr_ret_type> expr
 %type <expr_ret_type> func_call
 %type <expr_ret_type> l_value
 %type <cond_ret_type> cond
-%type <Quads.quad_t list> local_def
+%type <QuadTypes.quad_t list> local_def
 
 %% 
 program:                initialization first_func_def T_Eof {$2}

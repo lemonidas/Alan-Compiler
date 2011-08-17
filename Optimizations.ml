@@ -1,3 +1,4 @@
+open QuadTypes
 open Quads
 open Symbol
 open Error

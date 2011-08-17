@@ -1,3 +1,4 @@
+open QuadTypes
 open Quads
 open Blocks
 open Error

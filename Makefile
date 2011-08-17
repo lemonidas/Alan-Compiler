@@ -8,9 +8,9 @@ else
 endif
 
 EXEFILE=alanc$(EXE)
-MLFILES=Hashcons.ml Identifier.ml Error.ml Types.ml Symbol.ml       \
-  Printing.ml Semantic.ml Quads.ml Lexer.ml Parser.ml Blocks.ml     \
-  ControlFlow.ml SSA.ml                                             \
+MLFILES= Error.ml Hashcons.ml Identifier.ml Types.ml AlanString.ml  \
+  Symbol.ml Printing.ml Semantic.ml Quads.ml Lexer.ml Parser.ml     \
+  Blocks.ml ControlFlow.ml SSA.ml                                   \
   FinalTypes.ml Optimizations.ml FinalOptimizations.ml Final.ml     \
   Main.ml 
 MLIFILES=Hashcons.mli Identifier.mli Error.mli Types.mli Symbol.mli \

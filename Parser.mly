@@ -1,9 +1,7 @@
 %{
 
 open Format
-
 open Lexing
-
 open Error
 open Identifier
 open Types

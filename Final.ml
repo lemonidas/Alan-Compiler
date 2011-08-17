@@ -456,52 +456,7 @@ let output_final_code out_chan fun_code optimize =
 	let i = ref 0 in
 	let output_single_string str =
 		incr(i);
-    (* Handle escape sequences in strings *)
-    let base = List.rev (Lexer.explode "\tdb '") in
-    let handle_escapes str =
-      let char_list = explode str in
-      let rec delete_empty_strings char_list acc =  
-        match char_list with 
-        | [] -> implode acc
-        | ('\n'::'\''::'\''::' '::'b'::'d'::'\t'::t) -> 
-          delete_empty_strings t acc
-        | (h::t) -> 
-          delete_empty_strings t (h::acc) in
-      let rec parse_char_list acc lst = 
-        match lst with
-        | [] -> 
-          let tail_lst = List.rev (explode "'\n\tdb 0\n") in
-          delete_empty_strings (tail_lst@acc) []
-        | ('\\'::'t'::t) ->
-          let to_add = List.rev (explode "'\n\tdb 9\n\tdb '") in
-          parse_char_list (to_add @ acc) t 
-        | ('\\'::'n'::t) ->
-          let to_add = List.rev (explode "'\n\tdb 10\n\tdb '") in
-          parse_char_list (to_add @ acc) t 
-        | ('\\'::'r'::t) ->
-          let to_add = List.rev (explode "'\n\tdb 13\n\tdb '") in
-          parse_char_list (to_add @ acc) t 
-        | ('\\'::'0'::t) ->
-          let to_add = List.rev (explode "'\n\tdb 0\n\tdb '") in
-          parse_char_list (to_add @ acc) t 
-        | ('\\'::'\\'::t) ->
-          let to_add = List.rev (explode "'\n\tdb \\\n\tdb '") in
-          parse_char_list (to_add @ acc) t 
-        | ('\\'::'\''::t) ->
-          let to_add = List.rev (explode "'\n\tdb 39\n\tdb '") in
-          parse_char_list (to_add @ acc) t 
-        | ('\\'::'"'::t) ->
-          let to_add = List.rev (explode "'\n\tdb 34\n\tdb '") in
-          parse_char_list (to_add @ acc) t 
-        | ('\\'::'x'::n1::n2::t) ->
-          let code = (get_hex_value n1 * 16 + get_hex_value n2) in
-          let to_add_str = Printf.sprintf "'\n\tdb %d\n\tdb '" code in
-          let to_add = List.rev (explode to_add_str) in
-          parse_char_list (to_add @ acc) t
-        | (h::t) ->
-          parse_char_list (h::acc) t in (* End parse_char*)
-      parse_char_list base char_list in
-    let asm_string = handle_escapes str in
+    let asm_string = AlanString.handle_escapes str in
 		Printf.fprintf out_chan "@str%d%s" !i asm_string
 	in Queue.iter output_single_string string_queue;
 	Queue.clear string_queue;

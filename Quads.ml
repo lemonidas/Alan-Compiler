@@ -13,6 +13,16 @@ let is_entry quad =
 	| Quad_entry(_) -> true
 	| _ -> false
 
+let is_not_temporary quad =
+  match quad with
+  | Quad_entry ent -> (
+    match ent.entry_info with
+    | ENTRY_variable _ 
+    | ENTRY_parameter _ -> true
+    | _ -> false
+    )
+  | _ -> false
+
 (* Handling [x] case *)
 let dereference x = 
 	match x.code with

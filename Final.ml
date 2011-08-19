@@ -273,52 +273,56 @@ let final_t_of_quad = function
 			|ENTRY_parameter(info) ->sizeOfArrayElem info.parameter_type
 			|_ -> internal "Called array with not an array"; raise Terminate
 		in let reg_size = get_size q1 in
+    let ax = get_register reg_size Ax in
+    let cx = get_register reg_size Cx in
     flatten_rev [] 
-    [ load (get_register reg_size Ax) q ;
-      [ Mov (Register (get_register reg_size Cx), Num (string_of_int size)) ];
-      [ IMul (get_register reg_size Cx) ];
-      load_addr (get_register reg_size Cx) (Quad_entry e1);
-      [Add (Action_reg (get_register reg_size Ax), 
-            Action_reg (get_register reg_size Cx)) ];
-      store (get_register reg_size Ax) (Quad_entry (e2))
+      [ load ax q ;
+      [ Mov (Register cx, Num (string_of_int size)) ];
+      [ IMul cx ];
+      load_addr cx (Quad_entry e1);
+      [Add (Action_reg ax, 
+            Action_reg cx) ];
+      store ax (Quad_entry (e2))
     ]
 	|Quad_calc(op,q1,q2,e) ->
 		begin 
     let size = if (get_type q1 = TYPE_byte) then "byte" else "word" in
+    let ax = get_register size Ax in
+    let cx = get_register size Cx in
 		match op with
 	 	|"+" ->
       flatten_rev [] 
-      [ load (get_register size Ax) q1;
-        load (get_register size Cx) q2;
-        [Add (Action_reg (get_register size Ax), 
-              Action_reg (get_register size Cx))];
-        store (get_register size Ax) e ]
+      [ load ax q1;
+        load cx q2;
+        [Add (Action_reg ax, 
+              Action_reg cx)];
+        store ax e ]
 	 	|"-" ->
       flatten_rev []
-      [ load (get_register size Ax) q1;
-        load (get_register size Cx) q2;
-        [Sub (Action_reg (get_register size Ax), 
-              Action_reg (get_register size Cx))];
-        store (get_register size Ax) e ]
+      [ load ax q1;
+        load cx q2;
+        [Sub (Action_reg ax, 
+              Action_reg cx)];
+        store ax e ]
 	 	|"*" ->
       flatten_rev []
-      [ load (get_register size Ax) q1;
-        load (get_register size Cx) q2;
-        [IMul (get_register size Cx)];
-        store (get_register size Ax) e ]
+      [ load ax q1;
+        load cx q2;
+        [IMul cx];
+        store ax e ]
 	 	|"/" ->
       flatten_rev []
-      [ load (get_register size Ax) q1;
+      [ load ax q1;
         [Cwd];
-        load (get_register size Cx) q2;
-        [IDiv (get_register size Cx)];
-        store (get_register size Ax) e ]
+        load cx q2;
+        [IDiv cx];
+        store ax e ]
 	 	|"%" ->
       flatten_rev [] 
-      [ load (get_register size Ax) q1;
+      [ load ax q1;
         [Cwd];
-        load (get_register size Cx) q2;
-        [IDiv (get_register size Cx)];
+        load cx q2;
+        [IDiv cx];
         store Dx e ]
 		|_ -> internal "Not an operator"; raise Terminate
 		end
@@ -333,11 +337,13 @@ let final_t_of_quad = function
 			|">=" -> "jge"
 			|">" -> "jg"
 			|_ -> internal "Not a comparator"; raise Terminate
-    in let size = get_size q1 
-    in flatten_rev []
-      [ load (get_register size Ax) q1;
-        load (get_register size Cx) q2;
-        [Cmp ((get_register size Ax),(get_register size Cx))];
+    in let size = get_size q1 in
+    let ax = (get_register size Ax) in
+    let cx = (get_register size Cx) in    
+    flatten_rev []
+      [ load ax q1;
+        load cx q2;
+        [Cmp (ax,cx)];
         [Cond_jump (jmp, (label (Stack.top func_stack) (!n)))] ]
 		end
 	|Quad_jump(z)->

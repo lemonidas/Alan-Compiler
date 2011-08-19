@@ -1,15 +1,8 @@
+open OptimizationSupport
 open QuadTypes
 open Quads
 open Blocks
 open Error
-
-type flowgraph_node_t = {
-  code_block : quad_t array;
-  mutable parents : int list;
-  mutable children : int list
-}
-
-type flowgraph_t = flowgraph_node_t array
 
 (* Function to convert function_block_t to flowgraph_t
  * IN  : function_block_t
@@ -48,13 +41,28 @@ let flowgraph_t_of_function_block_t fun_block =
   Array.iteri parse_block fun_block;
   flowgraph
 
-(* Set module of int - used later *)
-module Oint = struct 
-  type t = int
-  let compare = compare 
-end
+(* Uses the above function to create an array of Flowgraphs,
+ * one for each function *)
+let flowgraph_array_of_quads quads =
+  Array.of_list (
+    Array.fold_left 
+      (fun acc x -> (flowgraph_t_of_function_block_t x)::acc) 
+      [] quads)
 
-module Sint = Set.Make(Oint)
+(* Converts a flowgraph to an array of arrays *)
+let quads_of_flowgraph flowgraph =
+  let n = Array.length flowgraph in
+  let quads = Array.make n (Array.make 0 Quad_dummy) in
+  for i = 0 to n-1 do
+    quads.(i) <- flowgraph.(i).code_block;
+  done;
+  quads
+  
+let convert_back_to_quads flowgraphs =
+  Array.of_list (
+    Array.fold_left 
+      (fun acc x -> (quads_of_flowgraph x)::acc)
+      [] flowgraphs)
 
 (* Function to compute (immediate)  dominators, 
  * - Set of nodes represented by integers 0..N-1 

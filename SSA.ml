@@ -1,6 +1,7 @@
 open Quads
 open ControlFlow
 open Error
+open OptimizationSupport
 
 (* Nodes are numbers 0 -> n-1, flowgraph contains all 
  * necessary information, root is allways 0 

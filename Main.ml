@@ -91,8 +91,9 @@ let main =
 	let code_list = List.rev (Parser.program Lexer.lexer lexbuf) in
   let block_code = Blocks.blocks_of_quad_t_list code_list in
 	let block_code = optimize block_code in
-  let flowgraph = ControlFlow.flowgraph_t_of_function_block_t block_code.(0) in
-  (*ignore (SSA.compute_dominating_frontier flowgraph);*)
+  let flowgraphs = ControlFlow.flowgraph_array_of_quads block_code in
+  (*Array.iter CopyPropagation.copy_propagation flowgraphs;  *)
+  let block_code = ControlFlow.convert_back_to_quads flowgraphs in
 	match !mode with
 	|Intermediate ->
 		Blocks.output_block_code stdout block_code

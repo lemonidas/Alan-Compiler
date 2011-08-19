@@ -3,7 +3,6 @@ open OptimizationSupport
 open Quads
 open Symbol
 open Error
-open Identifier
 
 module KillElem = struct
   type t = quad_elem_t

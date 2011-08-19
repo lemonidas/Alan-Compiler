@@ -67,16 +67,18 @@ let optimize block_code =
 		Optimizations.constant_folding block_code;
 		Optimizations.dummy_elimination block_code;
     
-    (*
-		(* Start copy propagation - locally at first *)
-		Array.iter (Optimizations.local_copy_propagation) block_code;
+    (* Convert to flowgraph for further optimizations *)
+    let flowgraphs = ControlFlow.flowgraph_array_of_quads block_code in
 
-		(* Unreachable Code Elimination *)
-		let flow_graph = Flow.convert_to_flow_graph block_code in
-		Optimizations.unreachable_code_elimination flow_graph;
+    (* Copy Propagation *)
+    Array.iter CopyPropagation.copy_propagation flowgraphs;
 
-		Flow.blocks_of_flow_graph flow_graph
-    *)
+    (* Tail Recursion *)
+    TailRecursion.tail_recursion_elimination flowgraphs;
+
+    (* Convert back *)
+    let block_code = ControlFlow.convert_back_to_quads flowgraphs in
+    
     block_code
 		)
 	else block_code
@@ -91,9 +93,11 @@ let main =
 	let code_list = List.rev (Parser.program Lexer.lexer lexbuf) in
   let block_code = Blocks.blocks_of_quad_t_list code_list in
 	let block_code = optimize block_code in
+  (* For debug purposes *)
   let flowgraphs = ControlFlow.flowgraph_array_of_quads block_code in
-  (*Array.iter CopyPropagation.copy_propagation flowgraphs;  *)
+
   let block_code = ControlFlow.convert_back_to_quads flowgraphs in
+  (* End debug *)
 	match !mode with
 	|Intermediate ->
 		Blocks.output_block_code stdout block_code

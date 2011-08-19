@@ -7,9 +7,20 @@ Parser:       Done
 Intermediate: Done
 Final Code:   Done
 
+
+
+
 Optimizations:
+
+Easy ones:
 -Constant Folding
--Local Copy Propagation
 -Reverse Copy Propagation
--Unreachable Code Elimination
+
+Control Flow:
+-Tail Recursion Elimination
+
+Data Flow:
+-Copy Propagation
+
+Low Level:
 -Consecutive Load/Store Deletions

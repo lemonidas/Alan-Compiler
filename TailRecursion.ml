@@ -17,6 +17,7 @@ let convert_tail_recursive_call flowgraph node_no inst_no =
     | ENTRY_function fun_info ->
         fun_info.function_paramlist
     | _ -> internal "Func must be a function"; raise Terminate in
+  
   let n = List.length params in
   
   (* Figure out the beginning of the "par quads" - and check for errors *)
@@ -64,9 +65,27 @@ let single_tail_recursion_elimination flowgraph =
         if (len-2 >= 0)
         then 
           match code.(len-2) with
+          (* If the function is proc then the one 1 instruction before return 
+           * will be the tail call *)
           | Quad_call ent ->
-            if ent = fun_entry
-            then convert_tail_recursive_call flowgraph h (len-1)
+            if ((ent.entry_scope.sco_nesting = fun_entry.entry_scope.sco_nesting) &&
+                (id_name ent.entry_id = id_name fun_entry.entry_id))
+            then convert_tail_recursive_call flowgraph h (len-2)
+          (* If the function is not proc, then 1 instruction before will be 
+           * set, 2 the tail call and 3 the par(x, RET) *)
+          | Quad_set (q1, q2) -> (
+            if get_id q2 = "$$" 
+            then try 
+              match code.(len-3), code.(len-4) with
+              | Quad_call ent, Quad_par (q, PASS_RET) ->
+                if ((ent.entry_scope.sco_nesting = 
+                     fun_entry.entry_scope.sco_nesting) &&
+                    (id_name ent.entry_id = id_name fun_entry.entry_id) &&
+                    ((get_id q1) = (get_id q)))
+                then convert_tail_recursive_call flowgraph h (len-3)
+              | _ -> ()
+            with _ -> ()
+          )
           | _ -> ()
         )
       (* Else there is no tail recursion *)

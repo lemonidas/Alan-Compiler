@@ -7,15 +7,13 @@ Parser:       Done
 Intermediate: Done
 Final Code:   Done
 
-
-
-
 Optimizations:
 
 Easy ones:
 -Constant Folding
 -Reverse Copy Propagation
 -Unreachable Code (After Unconditional Jumps-ret)
+-Jump Simplification (Needs long-jump care)
 
 Control Flow:
 -Tail Recursion Elimination

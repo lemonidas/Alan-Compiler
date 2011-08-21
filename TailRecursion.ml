@@ -8,17 +8,24 @@ open Types
 
 (* Consider a tail-call in intermediate code found, this function does what is 
  * needed *)
+(* To deal with the problem of modified pars in between sets i do the following:
+ * Let all the par quads do their work (increase stack size and put the args 
+ * there). Then before the call i copy them back to the original place and
+ * redecrease the stack size *)
 let convert_tail_recursive_call flowgraph node_no inst_no =
   
+  (* Get the function entry *)
   let func = match flowgraph.(node_no).code_block.(inst_no) with
   |Quad_call ent -> ent
   | _ -> internal "Not a function call!!"; raise Terminate in
 
-  let (params, result_type) = match func.entry_info with
-    | ENTRY_function fun_info ->
-        (fun_info.function_paramlist, fun_info.function_result)
+  (* Get the function info *)
+  let fun_info = match func.entry_info with
+    | ENTRY_function fun_info -> fun_info
     | _ -> internal "Func must be a function"; raise Terminate in
 
+  (* Check if it has a parameter by reference in order not to perform opt *)
+  let result_type = fun_info.function_result in
   let rec check_if_exists_by_reference = function
     | []  when result_type = TYPE_proc -> true
     | [_] when result_type = TYPE_int || result_type = TYPE_byte -> true
@@ -33,32 +40,55 @@ let convert_tail_recursive_call flowgraph node_no inst_no =
     | _ -> internal "Error in return type.. Should be caught earlier"; 
       raise Terminate in
   
-  let n = List.length params in
+  (* Right before the call "insert" the new code *)
   
-  (* Find par quad locations - assumes no "by reference" *)
-  let rec find_par_locations acc i pars_left =
-    match pars_left with
-    | 0 -> acc
+  (* Make code list *)
+  let code_as_list = Array.to_list (flowgraph.(node_no).code_block) in  
+  
+  (* Find the location of the quad_call *)
+  let rec take_n_first acc lst n =
+    match n, lst with
+    | 0, (Quad_call _:: tail)   -> (acc, tail)
+    | 0, _ -> internal "nth should be func call"; raise Terminate
+    | _, (h::t) -> take_n_first (h::acc) t (n-1) 
     | _ -> 
-      match flowgraph.(node_no).code_block.(i) with
-      | Quad_par (q,_) -> find_par_locations ((i,q)::acc) (i-1) (pars_left - 1)
-      | _ -> find_par_locations acc (i-1) pars_left in
+      internal "Block can't finish before taking part of it!";
+      raise Terminate in
+   
+  
+  (* Find the size of the parameters pushed *)
+  let params = fun_info.function_paramlist in
+  let negoffs = fun_info.function_negoffs in
+  
+  Printf.printf "%d\n" negoffs;
+ 
+  let rec walk_params param_list offset total code_acc =
+    match param_list with
+    | [] -> (total, code_acc)
+    | (param::tail) ->
+      match param.entry_info with 
+      |ENTRY_parameter par_info ->
+        let size = if (par_info.parameter_type = TYPE_byte) then 1 else 2 in
+        let elem = Quad_tailpar (offset-size, par_info.parameter_type) in
+        let new_quad = Quad_set(elem, Quad_entry(param)) in
+        walk_params tail (offset-size) (total+size) (new_quad::code_acc)
+      | _ -> internal "Parameter not a parameter?"; raise Terminate in
 
-  let param_locs = find_par_locations [] inst_no n in
-
-  let rec walk_params param_list param_locs =
-    match param_list, param_locs with
-    | [], [] -> ()
-    | (h::t), ((i,q)::ti) ->
-      flowgraph.(node_no).code_block.(i) <- Quad_set (q,(Quad_entry h));
-      walk_params t ti
-    | _ -> internal "Uneven arguments"; raise Terminate in
   
   if (check_if_exists_by_reference params)
   then (
-    walk_params params param_locs;
-    flowgraph.(node_no).code_block.(inst_no) <- Quad_jump (ref 1)
+    let (total, new_code) = walk_params params negoffs 0 [] in
+    let (head, tail) = take_n_first [] code_as_list inst_no in
+    let extra_code = [Quad_stack total;Quad_jump (ref 1)] in
+    
+    let new_code_list = List.rev_append head (new_code@extra_code@tail) in
+    flowgraph.(node_no) <- { flowgraph.(node_no) with
+      code_block = Array.of_list new_code_list
+    };
   )
+  
+
+
 
 (* Finds out given a flowgraph where tail-recursion optimizations can occur *)
 let single_tail_recursion_elimination flowgraph =

@@ -196,6 +196,10 @@ let rec load reg q =
     let size = size_description (extractType (get_type q))  in
     (Mov (Register reg, Mem_loc (size, Di, 0)))::
     (load Di (Quad_entry(ent)))
+  |Quad_tailpar (i,t) ->
+    let size = size_description t in
+    [Mov (Register reg, Mem_loc (size, Bp, i))]
+    
 
 (* Load address helper function *)
 let load_addr reg q =
@@ -248,6 +252,9 @@ let store reg q =
     let size = size_description (extractType (get_type q))  in
     (Mov (Mem_loc (size, Di, 0), Register reg))::
     (load Di (Quad_entry(ent)))
+  | Quad_tailpar (i,t) ->
+    let size = size_description t in
+    [Mov (Mem_loc (size, Bp, i), Register reg)]
   | _ -> internal "Storing not entry or valof"; raise Terminate    
 
 let rec flatten_rev acc = function
@@ -380,6 +387,7 @@ let final_t_of_quad = function
 	|Quad_ret ->
     [Jump (endof (Stack.top func_stack))]
 	|Quad_dummy -> []
+  |Quad_stack amt -> [Add (Action_reg Sp, Constant amt)]
 	|Quad_par(q,pm)->
 		match ((get_type q), pm) with
 		|(TYPE_int, PASS_BY_VALUE) ->

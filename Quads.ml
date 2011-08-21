@@ -36,6 +36,7 @@ let get_type = function
 	|Quad_int (_) -> TYPE_int
 	|Quad_char(_) -> TYPE_byte
 	|Quad_string (str) -> TYPE_array(TYPE_byte, String.length str)
+  |Quad_tailpar (_,t) -> t
 	|Quad_valof (ent) 
 	|Quad_entry (ent) -> 
 		match ent.entry_info with
@@ -44,6 +45,7 @@ let get_type = function
 		|ENTRY_parameter (info) -> extractType info.parameter_type
 		|ENTRY_function (info) -> extractType info.function_result
 		|ENTRY_temporary (info) -> extractType info.temporary_type
+  
 
 (* Get Size Description from a quad_elem_t *)
 let get_size q = 
@@ -65,6 +67,7 @@ let get_id = function
 	|Quad_string (s) -> s
 	|Quad_valof (ent)
 	|Quad_entry (ent) -> id_name ent.entry_id
+  |Quad_tailpar (i,_) -> Printf.sprintf "$PAR%d" i
 
 (* Main function to convert a quad to a string *)
 let string_of_quad_t = function
@@ -106,6 +109,8 @@ let string_of_quad_t = function
 			(string_of_pass_mode pm)
 	|Quad_ret -> "ret, -, -, -"	
 	|Quad_dummy -> ""
+  |Quad_stack amt ->
+    Printf.sprintf "stack+= %d" amt
 
 (* ----------------------------------------------------------------------------- *)
 
@@ -214,7 +219,9 @@ let handle_func_call id pos expr_list =
   (* Reverse the order of the code_list and add the par_quads *)
   let rec reverse_code_list acc = function
     | ([], []) -> acc
-    | ((h::t), (hp::tp)) -> reverse_code_list (hp::h@acc) (t,tp) in
+    | ((h::t), (hp::tp)) -> reverse_code_list (hp::h@acc) (t,tp) 
+    | _ -> internal "Uneven args and code"; raise Terminate in
+
   
   (* Extract expr_list information *)        
 	let (code_list, param_list, type_list) = 

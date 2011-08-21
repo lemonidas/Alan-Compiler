@@ -1,10 +1,11 @@
 type quad_elem_t =
-	|Quad_none                    (* Error Handling              *)
-	|Quad_entry of Symbol.entry   (* Symbol Table Entries        *)
-	|Quad_valof of Symbol.entry   (* Dereferenced Symbol Entries *)
-	|Quad_int of string           (* Constant Integers           *)
-	|Quad_char of string          (* Constant Characters         *)
-	|Quad_string of string	      (* Constant Strings            *)
+	|Quad_none                        (* Error Handling              *)
+	|Quad_entry of Symbol.entry       (* Symbol Table Entries        *)
+	|Quad_valof of Symbol.entry       (* Dereferenced Symbol Entries *)
+	|Quad_int of string               (* Constant Integers           *)
+	|Quad_char of string              (* Constant Characters         *)
+	|Quad_string of string	          (* Constant Strings            *)
+  |Quad_tailpar of int * Types.typ  (* Extra storage for Tail Rec  *) 
 
 val string_of_quad_elem_t : quad_elem_t -> string
 
@@ -19,6 +20,7 @@ type quad_t =
 	|Quad_jump of (int ref)
 	|Quad_call of Symbol.entry
 	|Quad_par of quad_elem_t * Symbol.pass_mode
+  |Quad_stack of int
 	|Quad_ret
 	
 type expr_ret_type = {

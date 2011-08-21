@@ -63,13 +63,24 @@ let optimize block_code =
 		(* First optimization is allways immediate backward *)
 		Optimizations.immediate_backward_propagation block_code;
 
-		(* Remaining optimizations - constant folding *)
+    (* Constant Folding *)
 		Optimizations.constant_folding block_code;
+
+    (* Unreachable simple deletions *)
+    CodeElimination.perform_deletions block_code;
+  
+    (* Simplify jumps *)
+    (*Optimizations.jump_simplification block_code;*)
+
+    (* Dummy elimination *)
 		Optimizations.dummy_elimination block_code;
     
     (* Convert to flowgraph for further optimizations *)
     let flowgraphs = ControlFlow.flowgraph_array_of_quads block_code in
-
+    
+    (* Unreachable Code Elimination *)
+    CodeElimination.delete_unreachable_blocks flowgraphs;
+  
     (* Copy Propagation *)
     Array.iter CopyPropagation.copy_propagation flowgraphs;
 
@@ -95,7 +106,6 @@ let main =
 	let block_code = optimize block_code in
   (* For debug purposes *)
   let flowgraphs = ControlFlow.flowgraph_array_of_quads block_code in
-
   let block_code = ControlFlow.convert_back_to_quads flowgraphs in
   (* End debug *)
 	match !mode with

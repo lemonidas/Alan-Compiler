@@ -52,3 +52,11 @@ type cond_ret_type = {
 (* Returning a "null" quad - error handling mostly *)
 let return_null () = {code = []; place = Quad_none}
 
+let find_opposite_condition = function
+  | "==" -> "!="
+  | "!=" -> "=="
+  | "<=" -> ">"
+  | ">"  -> "<="
+  | ">=" -> "<"
+  | "<"  -> ">="
+  | _ -> internal "Not a conditional string"; raise Terminate

@@ -55,7 +55,7 @@ let local_copy_propagation flowgraph_node cp_in block_id=
     Hashtbl.remove local_cp_hash q;
     (* Then remove all _->q *)
     let remove_if_matched a b =
-      if b = q 
+      if (get_id b) = (get_id q)
       then Hashtbl.remove local_cp_hash a
       else () in
     Hashtbl.iter remove_if_matched local_cp_hash in

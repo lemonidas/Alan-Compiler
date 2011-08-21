@@ -248,8 +248,7 @@ let store reg q =
     let size = size_description (extractType (get_type q))  in
     (Mov (Mem_loc (size, Di, 0), Register reg))::
     (load Di (Quad_entry(ent)))
-    
-    
+  | _ -> internal "Storing not entry or valof"; raise Terminate    
 
 let rec flatten_rev acc = function
   | [] -> acc
@@ -393,6 +392,9 @@ let final_t_of_quad = function
         [Sub (Action_reg Sp, Constant 1)];
         [Mov (Register Si, Register Sp)];
         [Mov (Mem_loc ("byte", Si, 0), Register Al)] ]
+    |(_, PASS_BY_VALUE) ->
+      internal "Only ints or bytes can be passed by Value";
+      raise Terminate;
 		|(_, PASS_BY_REFERENCE)
 		|(_, PASS_RET) ->
       flatten_rev []

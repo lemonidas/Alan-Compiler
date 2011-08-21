@@ -34,8 +34,8 @@ let flowgraph_t_of_function_block_t fun_block =
           walk_rev (n-1)
       | _ -> () in
     match code.(code_length - 1) with
+    | Quad_cond _ -> insert_edge i (i+1); walk_rev (code_length -1)
     | Quad_jump _
-    | Quad_cond _
     | Quad_ret -> walk_rev (code_length - 1)
     | _ -> if (i < total_blocks - 1) then insert_edge i (i+1) in
   Array.iteri parse_block fun_block;

@@ -15,9 +15,11 @@ Optimizations:
 Easy ones:
 -Constant Folding
 -Reverse Copy Propagation
+-Unreachable Code (After Unconditional Jumps-ret)
 
 Control Flow:
 -Tail Recursion Elimination
+-Unreachable Code Elimination (blocks)
 
 Data Flow:
 -Copy Propagation

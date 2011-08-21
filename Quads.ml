@@ -200,6 +200,8 @@ let handle_func_call id pos expr_list =
         match hfi.entry_info with
         | ENTRY_parameter (par_info) ->
           let new_quad = Quad_par (hp, par_info.parameter_mode) in
+          if par_info.parameter_mode = PASS_BY_REFERENCE 
+          then check_param_by_reference hp id;
           create_par_quads (new_quad::acc) (tfi, tp)
         | _ -> 
           internal "Function parameter not a parameter"; 

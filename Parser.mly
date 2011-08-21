@@ -205,7 +205,15 @@ ttype:                data_type {$1}
                           in line: %d, position: %d." 
                           pos.pos_lnum (pos.pos_cnum - pos.pos_bol);
                         TYPE_none
+                      }
+                    | data_type error T_Eof {
+                         let pos = Parsing.symbol_start_pos () in
+                           error "Missing '[' in parameter declaration \
+                           in line: %d, position: %d." 
+                           pos.pos_lnum (pos.pos_cnum - pos.pos_bol);
+                        TYPE_none
                       };
+    
 
 r_type:               data_type {$1}
                     | T_Proc {TYPE_proc};

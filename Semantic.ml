@@ -165,6 +165,25 @@ let check_func_call fun_info id param_list pos =
 	in
 	check_parameters 1 true (fun_info.function_paramlist, param_list)	
 
+let check_param_by_reference param id =
+  match param with
+  |Quad_entry ent -> (
+    match ent.entry_info with
+    | ENTRY_parameter _
+    | ENTRY_variable _ -> ()
+    | ENTRY_temporary temp_info -> (
+      match temp_info.temporary_type with
+      | TYPE_pointer _ -> ()
+      | _ -> error "A temporary parameter is passed by reference in function %s" id
+    )
+    | _ -> internal "Whut?"; raise Terminate
+    )
+  | Quad_valof ent -> ()
+  | Quad_char ch -> error "A Char (%s) is passed by reference in function %s " ch id
+  | Quad_string str -> ()
+  | Quad_int i -> error "A constant (%s) is passed by reference in function %s" i id
+  | Quad_none -> ()
+
 (* Check that all arrays are passed by reference *) 
 let check_array_reference id ttype pos =
 	match ttype with

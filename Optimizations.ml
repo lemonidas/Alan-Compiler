@@ -136,4 +136,22 @@ let constant_folding fun_code =
     done
   in Array.iter fold_block fun_code
 
-
+(* Jump simplification *)
+(* Whenever there are in a block to jumps of the following kind:
+ * Quad_cond(next_block)::Quad_jump(some_block) 
+ * Reverse the condition and remove the unconditional jump *)
+let jump_simplification quads =   
+  let block_jump_simplification block_no block =
+    let n = Array.length block in
+    if n > 1 then
+    match block.(n-2), block.(n-1) with
+    | Quad_cond (str,q1,q2,jval), Quad_jump jump ->
+      if !jval = block_no + 1 then
+      begin
+        let opp = find_opposite_condition str in
+        block.(n-2) <- Quad_cond(opp, q1,q2, jump);
+        block.(n-1) <- Quad_dummy;
+      end
+    | _ -> () in
+  Array.iter (Array.iteri block_jump_simplification) quads
+    

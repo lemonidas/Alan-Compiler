@@ -34,3 +34,4 @@ type cond_ret_type = {
 
 val return_null : unit -> expr_ret_type
 
+val find_opposite_condition : string -> string

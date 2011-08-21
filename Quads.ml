@@ -191,10 +191,10 @@ let handle_func_call id pos expr_list =
 
   (* Create Par quads 
    * Takes function information and parameter list 
-   * Returns a list of Par Quads - reverse order *)
+   * Returns a list of Par Quads - normal *)
   let rec create_par_quads acc = function
     | (_,[]) ->
-      acc
+      List.rev acc
     | (hfi::tfi, hp::tp) -> 
       begin
         match hfi.entry_info with
@@ -211,15 +211,16 @@ let handle_func_call id pos expr_list =
       internal "Less args in create_par_quads"; 
       raise Terminate in
 
-  (* Reverse the order of the code_list *)
+  (* Reverse the order of the code_list and add the par_quads *)
   let rec reverse_code_list acc = function
-    | [] -> acc
-    | (h::t) -> reverse_code_list (h@acc) t in
+    | ([], []) -> acc
+    | ((h::t), (hp::tp)) -> reverse_code_list (hp::h@acc) (t,tp) in
   
   (* Extract expr_list information *)        
 	let (code_list, param_list, type_list) = 
 		unzip_expr_list [] [] []  expr_list in
 
+  
 	match ent.entry_info with
 	|ENTRY_function (info) ->
     (* Check for semantic correctness *)
@@ -229,19 +230,21 @@ let handle_func_call id pos expr_list =
       (* Generate par_quads *)
 			let par_code = create_par_quads [] 
 				(info.function_paramlist, param_list) in 
+  
+      let entire_code = reverse_code_list [] (code_list, par_code) in
 
       (* Create code based on function result *)
 			match (info.function_result) with
 			| TYPE_proc ->
 				{
-          code = Quad_call(ent)::par_code@(reverse_code_list [] code_list); 
+          code = Quad_call(ent)::entire_code;
           place = Quad_none
         }
 			| TYPE_int
 			| TYPE_byte -> 
 				let temp = newTemporary info.function_result in 
 				let par_q = Quad_par ( Quad_entry(temp) , PASS_RET) in {
-					code = Quad_call(ent)::par_q::par_code@(reverse_code_list [] code_list);
+					code = Quad_call(ent)::par_q::entire_code;
 					place = Quad_entry(temp)
 				}
 			| _ -> return_null ()					

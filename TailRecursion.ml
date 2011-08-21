@@ -35,27 +35,28 @@ let convert_tail_recursive_call flowgraph node_no inst_no =
   
   let n = List.length params in
   
-  (* Figure out the beginning of the "par quads" - and check for errors *)
-  let param_start = inst_no - n in
-  if (param_start < 0) 
-  then (
-    internal "Call block consists of less than needed par quads";
-    raise Terminate;
-  );
+  (* Find par quad locations - assumes no "by reference" *)
+  let rec find_par_locations acc i pars_left =
+    match pars_left with
+    | 0 -> acc
+    | _ -> 
+      match flowgraph.(node_no).code_block.(i) with
+      | Quad_par (q,_) -> find_par_locations ((i,q)::acc) (i-1) (pars_left - 1)
+      | _ -> find_par_locations acc (i-1) pars_left in
 
-  let rec walk_params param_list i =
-    match param_list, flowgraph.(node_no).code_block.(i) with
-    | [], _ -> ()
-    | (h::t), Quad_par(q,_) ->
+  let param_locs = find_par_locations [] inst_no n in
+
+  let rec walk_params param_list param_locs =
+    match param_list, param_locs with
+    | [], [] -> ()
+    | (h::t), ((i,q)::ti) ->
       flowgraph.(node_no).code_block.(i) <- Quad_set (q,(Quad_entry h));
-      walk_params t (i+1) 
-    | _, quad -> 
-      internal "Found %s when Quad_par was expected" (string_of_quad_t quad);
-      raise Terminate in
+      walk_params t ti
+    | _ -> internal "Uneven arguments"; raise Terminate in
   
   if (check_if_exists_by_reference params)
   then (
-    walk_params params param_start;
+    walk_params params param_locs;
     flowgraph.(node_no).code_block.(inst_no) <- Quad_jump (ref 1)
   )
 

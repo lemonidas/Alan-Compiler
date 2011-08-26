@@ -310,3 +310,7 @@ let endFunctionHeader e typ =
       inf.function_pstatus <- PARDEF_COMPLETE
   | _ ->
       internal "Cannot end parameters in a non-function"
+
+let equalEntries e1 e2 =
+  e1.entry_scope.sco_nesting = e2.entry_scope.sco_nesting &&
+  e1.entry_id = e2.entry_id

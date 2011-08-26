@@ -182,7 +182,6 @@ let check_param_by_reference param id =
   | Quad_char ch -> error "A Char (%s) is passed by reference in function %s " ch id
   | Quad_string str -> ()
   | Quad_int i -> error "A constant (%s) is passed by reference in function %s" i id
-  | Quad_tailpar _ -> internal "Seriously? How can a tail par be a param"
   | Quad_none -> ()
 
 (* Check that all arrays are passed by reference *) 

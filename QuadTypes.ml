@@ -12,7 +12,6 @@ type quad_elem_t =
 	|Quad_int of string               (* Constant Integers           *)
 	|Quad_char of string              (* Constant Characters         *)
 	|Quad_string of string	          (* Constant Strings            *)
-  |Quad_tailpar of int * Types.typ  (* Extra storage for Tail Rec  *) 
 
 let string_of_quad_elem_t = function
 	|Quad_none          -> ""
@@ -21,7 +20,6 @@ let string_of_quad_elem_t = function
 	|Quad_int str       -> str
 	|Quad_char str      -> str
 	|Quad_string str    -> Printf.sprintf "\"%s\"" str
-  |Quad_tailpar (i,_) -> Printf.sprintf "$PAR%d" i
 
 (* All quad types of the intermediate code *)
 type quad_t =
@@ -33,9 +31,9 @@ type quad_t =
 	|Quad_array of quad_elem_t * quad_elem_t * Symbol.entry
 	|Quad_cond of string * quad_elem_t * quad_elem_t * (int ref)
 	|Quad_jump of (int ref)
-	|Quad_call of Symbol.entry
+	|Quad_call of Symbol.entry * (quad_elem_t list)
+  |Quad_tailCall of Symbol.entry
 	|Quad_par of quad_elem_t * Symbol.pass_mode
-  |Quad_stack of int
 	|Quad_ret
 	
 (* Return Type of an Expression *)

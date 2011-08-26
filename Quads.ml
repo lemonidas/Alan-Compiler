@@ -36,7 +36,6 @@ let get_type = function
 	|Quad_int (_) -> TYPE_int
 	|Quad_char(_) -> TYPE_byte
 	|Quad_string (str) -> TYPE_array(TYPE_byte, String.length str)
-  |Quad_tailpar (_,t) -> t
 	|Quad_valof (ent) 
 	|Quad_entry (ent) -> 
 		match ent.entry_info with
@@ -67,7 +66,6 @@ let get_id = function
 	|Quad_string (s) -> s
 	|Quad_valof (ent)
 	|Quad_entry (ent) -> id_name ent.entry_id
-  |Quad_tailpar (i,_) -> Printf.sprintf "$PAR%d" i
 
 (* Main function to convert a quad to a string *)
 let string_of_quad_t = function
@@ -98,9 +96,10 @@ let string_of_quad_t = function
 			(string_of_quad_elem_t q1)
 			(string_of_quad_elem_t q2)
 			!i
-	|Quad_jump(i) ->
+	|Quad_jump i  ->
 		Printf.sprintf "jump, -, -, %d" !i
-	|Quad_call(ent) ->
+  |Quad_tailCall ent
+	|Quad_call (ent,_) ->
 		Printf.sprintf "call, -, -, %s"
 			(id_name ent.entry_id)
 	|Quad_par(q,pm) ->
@@ -109,8 +108,6 @@ let string_of_quad_t = function
 			(string_of_pass_mode pm)
 	|Quad_ret -> "ret, -, -, -"	
 	|Quad_dummy -> ""
-  |Quad_stack amt ->
-    Printf.sprintf "stack+= %d" amt
 
 (* ----------------------------------------------------------------------------- *)
 
@@ -244,14 +241,15 @@ let handle_func_call id pos expr_list =
 			match (info.function_result) with
 			| TYPE_proc ->
 				{
-          code = Quad_call(ent)::entire_code;
+          code = Quad_call(ent,param_list)::entire_code;
           place = Quad_none
         }
 			| TYPE_int
 			| TYPE_byte -> 
 				let temp = newTemporary info.function_result in 
-				let par_q = Quad_par ( Quad_entry(temp) , PASS_RET) in {
-					code = Quad_call(ent)::par_q::entire_code;
+        let ret_place = Quad_entry temp in
+				let par_q = Quad_par ( ret_place , PASS_RET) in {
+					code = Quad_call(ent,(param_list@[ret_place]))::par_q::entire_code;
 					place = Quad_entry(temp)
 				}
 			| _ -> return_null ()					

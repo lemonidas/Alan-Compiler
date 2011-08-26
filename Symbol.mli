@@ -74,3 +74,5 @@ val lookupEntry       : Identifier.id -> lookup_type -> bool -> entry
 
 val start_positive_offset : int   (* Αρχικό θετικό offset στο Ε.Δ.   *)
 val start_negative_offset : int   (* Αρχικό αρνητικό offset στο Ε.Δ. *)
+
+val equalEntries : entry -> entry -> bool

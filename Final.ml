@@ -196,9 +196,6 @@ let rec load reg q =
     let size = size_description (extractType (get_type q))  in
     (Mov (Register reg, Mem_loc (size, Di, 0)))::
     (load Di (Quad_entry(ent)))
-  |Quad_tailpar (i,t) ->
-    let size = size_description t in
-    [Mov (Register reg, Mem_loc (size, Bp, i))]
     
 
 (* Load address helper function *)
@@ -252,9 +249,6 @@ let store reg q =
     let size = size_description (extractType (get_type q))  in
     (Mov (Mem_loc (size, Di, 0), Register reg))::
     (load Di (Quad_entry(ent)))
-  | Quad_tailpar (i,t) ->
-    let size = size_description t in
-    [Mov (Mem_loc (size, Bp, i), Register reg)]
   | _ -> internal "Storing not entry or valof"; raise Terminate    
 
 let rec flatten_rev acc = function
@@ -373,7 +367,7 @@ let final_t_of_quad = function
       [Pop Bp];
       [Ret];
       [Misc endp] ]
-	|Quad_call(f) ->
+	|Quad_call(f,_) ->
 		let f_type = match f.entry_info with
 		| ENTRY_function (info) -> info.function_result
 		| _ -> internal "Calling something not a function"; raise Terminate
@@ -384,10 +378,12 @@ let final_t_of_quad = function
 			update_AL (Stack.top func_stack) f;
       [Call (get_name f)];
       [Add (Action_reg Sp, Constant (4+size))] ]
+  |Quad_tailCall f ->
+    let labl = label f 1 in
+    TailRecursion.handle_final_code_tail_recursion f labl
 	|Quad_ret ->
     [Jump (endof (Stack.top func_stack))]
 	|Quad_dummy -> []
-  |Quad_stack amt -> [Add (Action_reg Sp, Constant amt)]
 	|Quad_par(q,pm)->
 		match ((get_type q), pm) with
 		|(TYPE_int, PASS_BY_VALUE) ->

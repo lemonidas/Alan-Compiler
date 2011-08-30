@@ -37,7 +37,8 @@ and function_info = {
   mutable function_result    : Types.typ;
   mutable function_pstatus   : param_status;
   mutable function_initquad  : int;
-  mutable function_negoffs	 : int
+  mutable function_negoffs	 : int;
+  function_isLibrary : bool
 }
 
 and parameter_info = {
@@ -95,12 +96,15 @@ let initSymbolTable size =
 let openScope typ =
   let sco = {
     sco_parent = Some !currentScope;
-    sco_nesting = !currentScope.sco_nesting + 1;
+    sco_nesting = if !currentScope.sco_nesting = max_int 
+                  then 2
+                  else !currentScope.sco_nesting + 1;
     sco_entries = [];
     sco_negofs = start_negative_offset;
 	  sco_ret_type = typ;
   } in
-  currentScope := sco
+  currentScope := sco;
+  Printf.printf "opening new scope with nesting: %d\n" (!currentScope.sco_nesting)
 
 let closeScope f =
   let sco = !currentScope in 
@@ -174,7 +178,7 @@ let newVariable id typ err =
   } in
   newEntry id (ENTRY_variable inf) err
 
-let newFunction id err =
+let newFunction id err lib =
   try
     let e = lookupEntry id LOOKUP_CURRENT_SCOPE false in
     match e.entry_info with
@@ -195,7 +199,8 @@ let newFunction id err =
       function_result = TYPE_none;
       function_pstatus = PARDEF_DEFINE;
       function_initquad = 0;
-	  function_negoffs = 0;
+  	  function_negoffs = 0;
+      function_isLibrary = lib;
     } in
     newEntry id (ENTRY_function inf) false
 
@@ -273,30 +278,35 @@ let endFunctionHeader e typ =
             internal "Cannot end parameters in an already defined function"
         | PARDEF_DEFINE ->
             inf.function_result <- typ;
-            let offset = match typ with 
-				|TYPE_proc -> ref start_positive_offset
-				|TYPE_byte
-				|TYPE_int -> 
-					ignore(newParameter (id_make "$$") 
-								typ PASS_BY_REFERENCE e true);
-					ref (start_positive_offset - 2);
-				|_ -> internal "Return type must be int or byte";
-					raise Terminate
-			in let fix_offset e =
+            let offset = 
+              match typ with 
+  			    	| TYPE_proc -> ref start_positive_offset
+	  			    | TYPE_byte
+		  		    | TYPE_int -> 
+			  		    ignore(newParameter (id_make "$$") 
+				  				     typ PASS_BY_REFERENCE e true);
+					      ref (start_positive_offset - 2);
+				      | _ -> 
+                internal "Return type must be int or byte";
+	  				    raise Terminate
+			      in 
+            let fix_offset e =
               match e.entry_info with
               | ENTRY_parameter inf ->
-                  inf.parameter_offset <- !offset;
-                  let size =
-                    match inf.parameter_mode with
-                    | PASS_BY_VALUE     -> sizeOfType inf.parameter_type
-                    | PASS_BY_REFERENCE -> 2
-					| PASS_RET -> (
-						internal "Parameter cannot be return parameter";
-						raise Terminate
-					) in
-                  offset := !offset + size
+                inf.parameter_offset <- !offset;
+                let size =
+                  match inf.parameter_mode with
+                  | PASS_BY_VALUE     -> sizeOfType inf.parameter_type
+                  | PASS_BY_REFERENCE -> 2
+                  | PASS_RET -> (
+                		internal "Parameter cannot be return parameter";
+			      		   	raise Terminate
+                  	) 
+                in
+                offset := !offset + size
               | _ ->
-                  internal "Cannot fix offset to a non parameter" in
+                internal "Cannot fix offset to a non parameter" 
+            in
             List.iter fix_offset inf.function_paramlist;
             inf.function_paramlist <- List.rev inf.function_paramlist
         | PARDEF_CHECK ->
@@ -314,3 +324,8 @@ let endFunctionHeader e typ =
 let equalEntries e1 e2 =
   e1.entry_scope.sco_nesting = e2.entry_scope.sco_nesting &&
   e1.entry_id = e2.entry_id
+
+let isLibraryFunction ent =
+  match ent.entry_info with
+  | ENTRY_function fun_info -> fun_info.function_isLibrary
+  | _ -> false

@@ -103,8 +103,12 @@ let label f n =
 
 (* Update Links *)
 let update_AL callee called =
+  (* Debug *)
+  Printf.printf "Callee %s - nesting: %d, called %s - nesting %d\n" 
+    (id_name callee.entry_id) callee.entry_scope.sco_nesting 
+    (id_name called.entry_id) called.entry_scope.sco_nesting;
 	if (callee.entry_scope.sco_nesting < called.entry_scope.sco_nesting || 
-      called.entry_scope.sco_nesting = max_int )
+      Symbol.isLibraryFunction called )
 	then 
     [Push (Register Bp)]
 	else if (callee.entry_scope.sco_nesting = called.entry_scope.sco_nesting)

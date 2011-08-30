@@ -29,62 +29,67 @@ let rec registerParams p = function
   )        
 
 (* Function to Register a Function *)
-let rec registerFunction id param_list ret_type sc=
-  let p = newFunction (id_make id) true in
-    openScope ret_type;
+let rec registerFunction id param_list ret_type isLib=
+  let p = newFunction (id_make id) true isLib in
+    printSymbolTable();
+    openScope ret_type; 
     registerParams p param_list;
     endFunctionHeader p ret_type;
-    if(sc) then () else closeScope p;
+    printSymbolTable();
+    Printf.printf "Now closing scope if %b\n" isLib;
+    if(isLib) then closeScope p else ();
+    printSymbolTable();
     p
 
 (* Called to Register the external Library *)
 let registerLibrary() =
-  let p = registerFunction "writeInteger"   
+  ignore(registerFunction "writeInteger"   
     [("n", TYPE_int, PASS_BY_VALUE)] 
-    TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "writeByte"   
+    TYPE_proc true);
+  ignore(registerFunction "writeByte"   
     [("b", TYPE_byte, PASS_BY_VALUE)] 
-    TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "writeChar"   
+    TYPE_proc true);
+  ignore(registerFunction "writeChar"   
     [("b", TYPE_byte, PASS_BY_VALUE)] 
-    TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "writeString"   
+    TYPE_proc true);
+  ignore(registerFunction "writeString"   
     [("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)] 
-    TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "readInteger"   
+    TYPE_proc true);
+  ignore(registerFunction "readInteger"   
     [] 
-    TYPE_int true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "readByte"   
+    TYPE_int true);
+  ignore(registerFunction "readByte"   
     [] 
-    TYPE_byte true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "readChar"   
+    TYPE_byte true);
+  ignore(registerFunction "readChar"   
     [] 
-    TYPE_byte true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "readString"   
+    TYPE_byte true);
+  ignore(registerFunction "readString"   
     [("n", TYPE_int, PASS_BY_VALUE);
     ("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-     TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "extend" 
+     TYPE_proc true);
+  ignore(registerFunction "extend" 
     [("b",TYPE_byte, PASS_BY_VALUE)] 
-    TYPE_int true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "shrink" 
+    TYPE_int true);
+  ignore(registerFunction "shrink" 
     [("i", TYPE_int, PASS_BY_VALUE)] 
-    TYPE_byte true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "strlen" 
+    TYPE_byte true);
+  ignore(registerFunction "strlen" 
     [("s", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)] 
-    TYPE_int true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "strcmp"
+    TYPE_int true);
+  ignore(registerFunction "strcmp"
      [("s1", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
      ("s2", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-     TYPE_int true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "strcpy"
+     TYPE_int true);
+  ignore(registerFunction "strcpy"
      [("trg", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
      ("src", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-     TYPE_proc true in p.entry_scope.sco_nesting <- max_int;
-  let p = registerFunction "strcat"
+     TYPE_proc true);
+  ignore(registerFunction "strcat"
      [("trg", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE);
      ("src", TYPE_array(TYPE_byte,0), PASS_BY_REFERENCE)]
-     TYPE_proc true in p.entry_scope.sco_nesting <- max_int
+     TYPE_proc true);
+;;
 
 %}
 
@@ -140,7 +145,7 @@ let registerLibrary() =
 %left T_And
 %nonassoc T_Eq T_Neq T_Ge T_Geq T_Le T_Leq
 %left T_Add T_Sub
- %left T_Mult T_Div T_Mod
+%left T_Mult T_Div T_Mod
 %nonassoc T_Not
 
 %start program
@@ -152,7 +157,7 @@ let registerLibrary() =
 %type <QuadTypes.quad_t list> local_def
 
 %% 
-program:                initialization first_func_def T_Eof {$2}
+program:                initialization first_func_def T_Eof {printSymbolTable(); $2}
                       | error T_Eof {
                           fatal "Invalid program: \
                           Invalid main function definition.";
@@ -161,12 +166,13 @@ program:                initialization first_func_def T_Eof {$2}
 
 initialization:         { initSymbolTable 256 };
 
-first_func_def:         reg_lib func_header local_def compound_stmt {
-                          check_first_proc $2;
-                          handle_func_def (id_name $2.entry_id) $3 $4;
+first_func_def:         func_header reg_lib local_def compound_stmt {
+                          Printf.printf "First Function completely recognized\n";
+                          check_first_proc $1;
+                          handle_func_def (id_name $1.entry_id) $3 $4;
                         };
 
-reg_lib:                { registerLibrary(); }
+reg_lib:                { printSymbolTable(); registerLibrary(); printSymbolTable(); }
 
 func_def:               func_header local_def compound_stmt {
                           closeScope $1; 
@@ -174,7 +180,7 @@ func_def:               func_header local_def compound_stmt {
                         }
 
 func_header:            T_Id T_LParen fpar_list T_RParen T_Colon r_type {
-                          registerFunction $1 $3 $6 true
+                          registerFunction $1 $3 $6 false
                         };
 
 fpar_list:              { [] }

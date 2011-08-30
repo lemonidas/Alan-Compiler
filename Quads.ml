@@ -98,7 +98,9 @@ let string_of_quad_t = function
 			!i
 	|Quad_jump i  ->
 		Printf.sprintf "jump, -, -, %d" !i
-  |Quad_tailCall ent
+  |Quad_tailCall ent ->
+		Printf.sprintf "tailRecursiveCall, -, -, %s"
+			(id_name ent.entry_id)
 	|Quad_call (ent,_) ->
 		Printf.sprintf "call, -, -, %s"
 			(id_name ent.entry_id)

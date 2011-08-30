@@ -44,7 +44,10 @@ let immediate_backward_propagation fun_code =
 
 (* Constant folding *)
 let constant_folding fun_code = 
+  
+  (* This should apply to a single basic block *)
   let fold_block block_code =
+    Printf.printf "Entering new fold_block\n";
     let hash_initial_size = 42 in
     let constants_hash = Hashtbl.create hash_initial_size in
     let get_constant = function
@@ -76,7 +79,7 @@ let constant_folding fun_code =
         |(Some(v1), Some(v2))-> (
           let res = calc v1 v2 in
           let stres = string_of_int res in
-          Hashtbl.add constants_hash e res;
+          Hashtbl.replace constants_hash e res;
           match e.entry_info with
           | ENTRY_temporary _ -> Some(Quad_dummy)
           | ENTRY_variable _
@@ -85,10 +88,14 @@ let constant_folding fun_code =
           | _ -> internal "Entry can't be a function"; raise Terminate
         )
         |(Some v, None) ->
+          Hashtbl.remove constants_hash e;
           Some (Quad_calc(op, (Quad_int(string_of_int v)), q2, Quad_entry(e)))
         |(None, Some v) -> 
+          Hashtbl.remove constants_hash e;
           Some (Quad_calc(op, q1, (Quad_int(string_of_int v)), Quad_entry(e)))
-        |(None, None) -> None
+        |(None, None) -> 
+          Hashtbl.remove constants_hash e;
+          None
         end	
       |Quad_cond (op, q1, q2, e) ->
         begin
@@ -103,12 +110,14 @@ let constant_folding fun_code =
           Some (Quad_cond(op, q1, (Quad_int(string_of_int v)), e))
         |(None, None) -> None
         end	
-      |Quad_set(q,e) -> 
+      |Quad_set(q,(Quad_entry e)) -> 
         begin
         match (get_constant q) with
         |Some v ->
-          Some (Quad_set(Quad_int(string_of_int v),e))
+          Hashtbl.replace constants_hash e v;
+          Some (Quad_set(Quad_int(string_of_int v),(Quad_entry e)))
         |None -> 
+          Hashtbl.remove constants_hash e;
           None
         end
       |Quad_array(q1,q2, e)->
@@ -120,21 +129,33 @@ let constant_folding fun_code =
         end
       |Quad_par(q,pm)-> 
         begin
-        match get_constant q with
-        |Some v -> Some (Quad_par (Quad_int(string_of_int v), pm))
-        |None -> None			
+        if pm = PASS_BY_VALUE 
+        then
+          match get_constant q with
+          |Some v -> Some (Quad_par (Quad_int(string_of_int v), pm))
+          |None -> None			
+        else ( (* By reference/Ret means it is a "correct" entry *)
+          begin 
+            match q with
+            | Quad_entry e 
+            | Quad_valof e ->
+              Hashtbl.remove constants_hash e;
+            | _ -> ()
+          end;     
+          None          
+        )
         end
       |_ -> None
-    in let length = Array.length block_code in
+    in 
+    let length = Array.length block_code in
     for i = 0 to length - 1 do
-      let l = Array.length block_code.(i) in
-      for j = 0 to l - 1 do
-        match (propagate_single_quad block_code.(i).(j)) with
-        |Some q -> block_code.(i).(j) <- q
-        |None -> ()
-      done
+      Printf.printf "Here with %d\n" i;
+      match (propagate_single_quad block_code.(i)) with
+      |Some q -> block_code.(i) <- q
+      |None -> ()
     done
-  in Array.iter fold_block fun_code
+  in 
+  Array.iter (Array.iter fold_block) fun_code
 
 (* Jump simplification *)
 (* Whenever there are in a block to jumps of the following kind:

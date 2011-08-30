@@ -31,14 +31,10 @@ let rec registerParams p = function
 (* Function to Register a Function *)
 let rec registerFunction id param_list ret_type isLib=
   let p = newFunction (id_make id) true isLib in
-    printSymbolTable();
     openScope ret_type; 
     registerParams p param_list;
     endFunctionHeader p ret_type;
-    printSymbolTable();
-    Printf.printf "Now closing scope if %b\n" isLib;
     if(isLib) then closeScope p else ();
-    printSymbolTable();
     p
 
 (* Called to Register the external Library *)
@@ -157,7 +153,7 @@ let registerLibrary() =
 %type <QuadTypes.quad_t list> local_def
 
 %% 
-program:                initialization first_func_def T_Eof {printSymbolTable(); $2}
+program:                initialization first_func_def T_Eof {$2}
                       | error T_Eof {
                           fatal "Invalid program: \
                           Invalid main function definition.";
@@ -167,12 +163,11 @@ program:                initialization first_func_def T_Eof {printSymbolTable();
 initialization:         { initSymbolTable 256 };
 
 first_func_def:         func_header reg_lib local_def compound_stmt {
-                          Printf.printf "First Function completely recognized\n";
                           check_first_proc $1;
                           handle_func_def (id_name $1.entry_id) $3 $4;
                         };
 
-reg_lib:                { printSymbolTable(); registerLibrary(); printSymbolTable(); }
+reg_lib:                { registerLibrary() }
 
 func_def:               func_header local_def compound_stmt {
                           closeScope $1; 

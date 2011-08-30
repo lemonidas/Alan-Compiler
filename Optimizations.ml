@@ -47,7 +47,6 @@ let constant_folding fun_code =
   
   (* This should apply to a single basic block *)
   let fold_block block_code =
-    Printf.printf "Entering new fold_block\n";
     let hash_initial_size = 42 in
     let constants_hash = Hashtbl.create hash_initial_size in
     let get_constant = function
@@ -149,7 +148,6 @@ let constant_folding fun_code =
     in 
     let length = Array.length block_code in
     for i = 0 to length - 1 do
-      Printf.printf "Here with %d\n" i;
       match (propagate_single_quad block_code.(i)) with
       |Some q -> block_code.(i) <- q
       |None -> ()

@@ -96,15 +96,12 @@ let initSymbolTable size =
 let openScope typ =
   let sco = {
     sco_parent = Some !currentScope;
-    sco_nesting = if !currentScope.sco_nesting = max_int 
-                  then 2
-                  else !currentScope.sco_nesting + 1;
+    sco_nesting = !currentScope.sco_nesting + 1;
     sco_entries = [];
     sco_negofs = start_negative_offset;
 	  sco_ret_type = typ;
   } in
-  currentScope := sco;
-  Printf.printf "opening new scope with nesting: %d\n" (!currentScope.sco_nesting)
+  currentScope := sco
 
 let closeScope f =
   let sco = !currentScope in 

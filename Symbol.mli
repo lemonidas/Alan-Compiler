@@ -27,7 +27,8 @@ and function_info = {                         (******* Συνάρτηση *******)
   mutable function_result    : Types.typ;     (* Τύπος αποτελέσματος   *)
   mutable function_pstatus   : param_status;  (* Κατάσταση παραμέτρων  *)
   mutable function_initquad  : int;           (* Αρχική τετράδα        *)
-  mutable function_negoffs 	 : int			  (* Negative offsets 	   *)
+  mutable function_negoffs 	 : int;			      (* Negative offsets 	   *)
+  function_isLibrary : bool           (* If it is a Lib func   *)
 }
 
 and parameter_info = {                        (****** Παράμετρος *******)
@@ -63,7 +64,7 @@ val initSymbolTable  : int -> unit
 val openScope        : Types.typ -> unit
 val closeScope       : entry -> unit
 val newVariable      : Identifier.id -> Types.typ -> bool -> entry
-val newFunction      : Identifier.id -> bool -> entry
+val newFunction      : Identifier.id -> bool -> bool -> entry
 val newParameter     : Identifier.id -> Types.typ -> pass_mode ->
                                         entry -> bool -> entry
 val newTemporary     : Types.typ -> entry
@@ -76,3 +77,4 @@ val start_positive_offset : int   (* Αρχικό θετικό offset στο Ε.Δ.   *)
 val start_negative_offset : int   (* Αρχικό αρνητικό offset στο Ε.Δ. *)
 
 val equalEntries : entry -> entry -> bool
+val isLibraryFunction : entry -> bool

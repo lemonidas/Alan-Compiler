@@ -12,8 +12,8 @@ MLFILES= Error.ml Hashcons.ml Identifier.ml Types.ml AlanString.ml  \
   Symbol.ml Printing.ml QuadTypes.ml Semantic.ml Quads.ml Lexer.ml  \
   Parser.ml Blocks.ml OptimizationSupport.ml ControlFlow.ml SSA.ml  \
   CodeElimination.ml CopyPropagation.ml FinalTypes.ml               \
-  TailRecursion.ml Optimizations.ml FinalOptimizations.ml  Final.ml \
-  Main.ml 
+  TailRecursion.ml Optimizations.ml FinalOptimizations.ml           \
+  UDChains.ml Final.ml Main.ml 
 MLIFILES=Hashcons.mli Identifier.mli Error.mli Types.mli Symbol.mli \
   QuadTypes.mli Parser.mli Lexer.mli Blocks.mli CopyPropagation.mli \
   CodeElimination.mli TailRecursion.mli ControlFlow.mli Final.mli

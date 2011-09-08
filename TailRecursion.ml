@@ -70,7 +70,6 @@ let single_tail_recursion_elimination flowgraph =
     match parents with
     | [] -> ()
     | (h::t) ->
-      Printf.printf "Entering Predecessor %d\n" h;
       let code = flowgraph.(h).code_block in
       let len = Array.length code in
       try

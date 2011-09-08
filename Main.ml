@@ -3,6 +3,8 @@ open Error
 open Lexing
 open Quads
 open Final
+open Symbol
+open QuadTypes
 
 type mode_t = 
   | Normal 
@@ -29,6 +31,7 @@ let anon_fun str = in_file := Some str
 let optimize block_code =
 	if (!optimizations)
 	then (
+  
 		(* First optimization is allways immediate backward *)
 		Optimizations.immediate_backward_propagation block_code;
 
@@ -37,6 +40,9 @@ let optimize block_code =
 
     (* Unreachable simple deletions *)
     CodeElimination.perform_deletions block_code;
+    
+    (* Compute some necessary information for inter-procedural stuff *)
+    OptimizationSupport.compute_global_definitions block_code;
   
     (* Simplify jumps *)
     (*Optimizations.jump_simplification block_code;*)
@@ -55,6 +61,9 @@ let optimize block_code =
 
     (* Tail Recursion *)
     TailRecursion.tail_recursion_elimination flowgraphs;
+    
+    (* Reaching definitions *)
+    UDChains.reaching_definitions flowgraphs.(1);
 
     (* Convert back *)
     let block_code = ControlFlow.convert_back_to_quads flowgraphs in
@@ -88,6 +97,6 @@ let main =
       (* Extract main name *)
 			let base = String.sub str 0 ((String.length str) - 5) in
 			let imm_channel = open_out (base^".imm") in (
-			Blocks.output_block_code imm_channel block_code;
-			output_final_code (open_out (base^".asm")) block_code (!optimizations);
+	  		Blocks.output_block_code imm_channel block_code;
+		  	output_final_code (open_out (base^".asm")) block_code (!optimizations);
 			)

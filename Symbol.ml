@@ -10,6 +10,8 @@ module H = Hashtbl.Make (
   end
 )
 
+type global_status = GLOBAL_DEFINED | GLOBAL_USED
+
 type pass_mode = PASS_BY_VALUE | PASS_BY_REFERENCE | PASS_RET
 
 type param_status =
@@ -31,14 +33,15 @@ and variable_info = {
 }
 
 and function_info = {
-  mutable function_isForward : bool;
-  mutable function_paramlist : entry list;
-  mutable function_redeflist : entry list;
-  mutable function_result    : Types.typ;
-  mutable function_pstatus   : param_status;
-  mutable function_initquad  : int;
-  mutable function_negoffs	 : int;
-  function_isLibrary : bool
+  mutable function_isForward  : bool;
+  mutable function_paramlist  : entry list;
+  mutable function_redeflist  : entry list;
+  mutable function_result     : Types.typ;
+  mutable function_pstatus    : param_status;
+  mutable function_initquad   : int;
+  mutable function_negoffs	  : int;
+  function_isLibrary          : bool;
+  function_global             : (entry, global_status) Hashtbl.t;
 }
 
 and parameter_info = {
@@ -198,6 +201,7 @@ let newFunction id err lib =
       function_initquad = 0;
   	  function_negoffs = 0;
       function_isLibrary = lib;
+      function_global = Hashtbl.create 2;
     } in
     newEntry id (ENTRY_function inf) false
 

@@ -2,6 +2,8 @@
 
 type pass_mode = PASS_BY_VALUE | PASS_BY_REFERENCE | PASS_RET
 
+type global_status = GLOBAL_DEFINED | GLOBAL_USED
+
 type param_status =
   | PARDEF_COMPLETE                             (* Πλήρης ορισμός     *)
   | PARDEF_DEFINE                               (* Εν μέσω ορισμού    *)
@@ -21,14 +23,16 @@ and variable_info = {                         (******* Μεταβλητή *******)
 }
 
 and function_info = {                         (******* Συνάρτηση *******)
-  mutable function_isForward : bool;          (* Δήλωση forward        *)
-  mutable function_paramlist : entry list;    (* Λίστα παραμέτρων      *)
-  mutable function_redeflist : entry list;    (* Λίστα παραμέτρων (2η) *)
-  mutable function_result    : Types.typ;     (* Τύπος αποτελέσματος   *)
-  mutable function_pstatus   : param_status;  (* Κατάσταση παραμέτρων  *)
-  mutable function_initquad  : int;           (* Αρχική τετράδα        *)
-  mutable function_negoffs 	 : int;			      (* Negative offsets 	   *)
-  function_isLibrary : bool           (* If it is a Lib func   *)
+  mutable function_isForward  : bool;         (* Δήλωση forward        *)
+  mutable function_paramlist  : entry list;   (* Λίστα παραμέτρων      *)
+  mutable function_redeflist  : entry list;   (* Λίστα παραμέτρων (2η) *)
+  mutable function_result     : Types.typ;    (* Τύπος αποτελέσματος   *)
+  mutable function_pstatus    : param_status; (* Κατάσταση παραμέτρων  *)
+  mutable function_initquad   : int;          (* Αρχική τετράδα        *)
+  mutable function_negoffs 	  : int;			    (* Negative offsets 	   *)
+  function_isLibrary          : bool;         (* If it is a Lib func   *)
+  function_global             : (entry, global_status) Hashtbl.t 
+                                              (* Global Definitions    *)
 }
 
 and parameter_info = {                        (****** Παράμετρος *******)

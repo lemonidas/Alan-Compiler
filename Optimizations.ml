@@ -95,7 +95,7 @@ let constant_folding fun_code =
         |(None, None) -> 
           Hashtbl.remove constants_hash e;
           None
-        end	
+        end 
       |Quad_cond (op, q1, q2, e) ->
         begin
         let c1 = get_constant q1 in
@@ -108,7 +108,7 @@ let constant_folding fun_code =
         |(None, Some v) -> 
           Some (Quad_cond(op, q1, (Quad_int(string_of_int v)), e))
         |(None, None) -> None
-        end	
+        end 
       |Quad_set(q,(Quad_entry e)) -> 
         begin
         match (get_constant q) with
@@ -132,7 +132,7 @@ let constant_folding fun_code =
         then
           match get_constant q with
           |Some v -> Some (Quad_par (Quad_int(string_of_int v), pm))
-          |None -> None			
+          |None -> None     
         else ( (* By reference/Ret means it is a "correct" entry *)
           begin 
             match q with

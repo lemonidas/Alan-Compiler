@@ -9,98 +9,98 @@ type function_block_t = basic_block_t array
  * OUT : Array of quad_t array
  *) 
 let convert_function_to_blocks im_code =
-	
-	(* Variable Declarations *)
-	let length = Array.length im_code in
-	let breakpoint = Array.make length false in
-	let blocks = Array.make length 0 in
-	let block_no = ref 0 in
+  
+  (* Variable Declarations *)
+  let length = Array.length im_code in
+  let breakpoint = Array.make length false in
+  let blocks = Array.make length 0 in
+  let block_no = ref 0 in
 
-	(* Helper Functions *)
-	let extract_jump_value = function
-		| Quad_jump (x)
-		| Quad_cond  (_,_,_,x)
-			-> Some (!x)
-		| _ -> None
- 	in
-	
-	let is_jump = function
-		| Quad_jump (_)
-		| Quad_cond (_)
-			-> true
-		| _ -> false
- 	in
+  (* Helper Functions *)
+  let extract_jump_value = function
+    | Quad_jump (x)
+    | Quad_cond  (_,_,_,x)
+      -> Some (!x)
+    | _ -> None
+  in
+  
+  let is_jump = function
+    | Quad_jump (_)
+    | Quad_cond (_)
+      -> true
+    | _ -> false
+  in
 
-	let convert_jump quad = 
-		match quad with
-		| Quad_jump (x)
-		| Quad_cond (_, _, _, x) 
-			-> x := blocks.(!x); quad
-		| _ -> quad
- 	in
-	
-	(* Important Functions Before Unit Calls *)
-	
-	(* Initialize break points *)
-	let handle_quad_break x =
-		match (extract_jump_value x) with
-		| None -> ()
-		| Some (n) -> breakpoint.(n) <- true
-	in
-	
-	(* Main function to loop through array *)
-	let rec walk i jump_mode =
-		if (i >= length) 
-		then ()
-		else match (breakpoint.(i), jump_mode, is_jump im_code.(i)) with
-		| (true,_,b) ->
+  let convert_jump quad = 
+    match quad with
+    | Quad_jump (x)
+    | Quad_cond (_, _, _, x) 
+      -> x := blocks.(!x); quad
+    | _ -> quad
+  in
+  
+  (* Important Functions Before Unit Calls *)
+  
+  (* Initialize break points *)
+  let handle_quad_break x =
+    match (extract_jump_value x) with
+    | None -> ()
+    | Some (n) -> breakpoint.(n) <- true
+  in
+  
+  (* Main function to loop through array *)
+  let rec walk i jump_mode =
+    if (i >= length) 
+    then ()
+    else match (breakpoint.(i), jump_mode, is_jump im_code.(i)) with
+    | (true,_,b) ->
       (* In case of breakpoint - increase block number *)
-			incr(block_no);
-			blocks.(i) <- !block_no;
-			walk (i+1) b
-		| (false, true, true) ->
+      incr(block_no);
+      blocks.(i) <- !block_no;
+      walk (i+1) b
+    | (false, true, true) ->
       (* Else, in case previous and current is jump continue *)
-			blocks.(i) <- !block_no;
-			walk (i+1) true
-		| (false, true, false) ->
+      blocks.(i) <- !block_no;
+      walk (i+1) true
+    | (false, true, false) ->
       (* If previous was jump and this isn't -> break block *)
-			incr(block_no);
-			blocks.(i) <- !block_no;
-			walk (i+1) false
-		| (false, false, b) ->
+      incr(block_no);
+      blocks.(i) <- !block_no;
+      walk (i+1) false
+    | (false, false, b) ->
       (* Else just continue recursively *)
-			blocks.(i) <- !block_no;
-			walk (i+1) b
-	in
-	
-	(* Function to Return the next block and various info *)
-	let rec next_block i index acc =
-		if (i >= length) then 
-			(List.rev acc, (i+1))
-		else if (blocks.(i) > index) then
-			(List.rev acc, (i))
-		else 
-			next_block (i+1) index ((convert_jump im_code.(i))::acc)
-	in
+      blocks.(i) <- !block_no;
+      walk (i+1) b
+  in
+  
+  (* Function to Return the next block and various info *)
+  let rec next_block i index acc =
+    if (i >= length) then 
+      (List.rev acc, (i+1))
+    else if (blocks.(i) > index) then
+      (List.rev acc, (i))
+    else 
+      next_block (i+1) index ((convert_jump im_code.(i))::acc)
+  in
 
   (* Loops through all instructions forming the actual blocks *)
-	let rec loop i acc =
-		if (i >= length)
-		then 
-			Array.of_list (List.rev acc)
-		else
-			let next_block_id = blocks.(i) in
-			let (quads, new_i) = next_block i next_block_id [] in
-			loop new_i ((Array.of_list quads)::acc)
-	in
+  let rec loop i acc =
+    if (i >= length)
+    then 
+      Array.of_list (List.rev acc)
+    else
+      let next_block_id = blocks.(i) in
+      let (quads, new_i) = next_block i next_block_id [] in
+      loop new_i ((Array.of_list quads)::acc)
+  in
 
-	(* Main Point *)
-	Array.iter handle_quad_break im_code;
-	breakpoint.(0) <- false; (* Zero is allready a break point *)
+  (* Main Point *)
+  Array.iter handle_quad_break im_code;
+  breakpoint.(0) <- false; (* Zero is allready a break point *)
   breakpoint.(1) <- true; (* Make sure unit is a single entry block *)
   breakpoint.(length-1) <- true; (* Make sure endu is a single end block *)
-	walk 0 false;
-	loop 0 []
+  walk 0 false;
+  loop 0 []
 
 (* Uses the function above to convert all function blocks to flow_blocks 
  * IN  : List of quad_t array grouped by Function
@@ -147,13 +147,13 @@ let blocks_of_quad_t_list quad_list=
  * OUT : Unit function
  *)
 let output_block_code out_chan block_code=
-	let output_single quad = 
-		Printf.fprintf out_chan "%s\n" (string_of_quad_t quad)
-	in let output_block i block =
-		Printf.fprintf out_chan "Block %d\n" i;
-		Array.iter output_single block
+  let output_single quad = 
+    Printf.fprintf out_chan "%s\n" (string_of_quad_t quad)
+  in let output_block i block =
+    Printf.fprintf out_chan "Block %d\n" i;
+    Array.iter output_single block
   in let output_function fun_block =
     Array.iteri output_block fun_block
-	in Array.iter output_function block_code
+  in Array.iter output_function block_code
 
 

@@ -29,14 +29,14 @@ let spec = Arg.align [
 let anon_fun str = in_file := Some str       
 
 let optimize block_code =
-	if (!optimizations)
-	then (
+  if (!optimizations)
+  then (
   
-		(* First optimization is allways immediate backward *)
-		Optimizations.immediate_backward_propagation block_code;
+    (* First optimization is allways immediate backward *)
+    Optimizations.immediate_backward_propagation block_code;
 
     (* Constant Folding *)
-		Optimizations.constant_folding block_code;
+    Optimizations.constant_folding block_code;
 
     (* Unreachable simple deletions *)
     CodeElimination.perform_deletions block_code;
@@ -48,7 +48,7 @@ let optimize block_code =
     (*Optimizations.jump_simplification block_code;*)
 
     (* Dummy elimination *)
-		Optimizations.dummy_elimination block_code;
+    Optimizations.dummy_elimination block_code;
     
     (* Convert to flowgraph for further optimizations *)
     let flowgraphs = ControlFlow.flowgraph_array_of_quads block_code in
@@ -69,34 +69,34 @@ let optimize block_code =
     let block_code = ControlFlow.convert_back_to_quads flowgraphs in
     
     block_code
-		)
-	else block_code
-	
+    )
+  else block_code
+  
 let main = 
   Arg.parse spec anon_fun usage;
-	let in_channel = 
-		match !in_file with
-		|None -> stdin; 
-		|Some(str) -> open_in str
- 	in 
+  let in_channel = 
+    match !in_file with
+    |None -> stdin; 
+    |Some(str) -> open_in str
+  in 
   let lexbuf = Lexing.from_channel in_channel in
-	let code_list = List.rev (Parser.program Lexer.lexer lexbuf) in
+  let code_list = List.rev (Parser.program Lexer.lexer lexbuf) in
   let block_code = Blocks.blocks_of_quad_t_list code_list in
-	let block_code = optimize block_code in
-	match !mode with
-	|Intermediate ->
-		Blocks.output_block_code stdout block_code
-	|Final ->
+  let block_code = optimize block_code in
+  match !mode with
+  |Intermediate ->
+    Blocks.output_block_code stdout block_code
+  |Final ->
     output_final_code stdout block_code (!optimizations)
-	|Normal ->
-		match (!in_file) with
-		|None -> 
-			internal "Normal mode reads from source code";
-			raise Terminate
-		|Some(str) ->
+  |Normal ->
+    match (!in_file) with
+    |None -> 
+      internal "Normal mode reads from source code";
+      raise Terminate
+    |Some(str) ->
       (* Extract main name *)
-			let base = String.sub str 0 ((String.length str) - 5) in
-			let imm_channel = open_out (base^".imm") in (
-	  		Blocks.output_block_code imm_channel block_code;
-		  	output_final_code (open_out (base^".asm")) block_code (!optimizations);
-			)
+      let base = String.sub str 0 ((String.length str) - 5) in
+      let imm_channel = open_out (base^".imm") in (
+        Blocks.output_block_code imm_channel block_code;
+        output_final_code (open_out (base^".asm")) block_code (!optimizations);
+      )

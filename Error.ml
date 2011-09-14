@@ -60,14 +60,14 @@ let print_position ppf pos =
       ()
 
 let get_expression start_pos end_pos file_name =
-	let in_channel = open_in file_name in
-	let starting_pos = start_pos.pos_cnum in
-	let read_amount = (end_pos.pos_cnum - start_pos.pos_cnum) in
-	let expr = String.create read_amount in
-	seek_in in_channel starting_pos;
-	ignore (input in_channel expr 0 read_amount);
-	close_in in_channel;
-	expr
+  let in_channel = open_in file_name in
+  let starting_pos = start_pos.pos_cnum in
+  let read_amount = (end_pos.pos_cnum - start_pos.pos_cnum) in
+  let expr = String.create read_amount in
+  seek_in in_channel starting_pos;
+  ignore (input in_channel expr 0 read_amount);
+  close_in in_channel;
+  expr
 ;;
 
 let no_out buf pos len = ()

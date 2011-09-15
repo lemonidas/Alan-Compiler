@@ -15,6 +15,8 @@ let mode          = ref Normal
 let optimizations = ref false
 let in_file       = ref None
 
+let flag_jump_simplification = ref false
+
 let usage = "Usage: alanc file [options] ...\n\nOptions:"
 
 let spec = Arg.align [
@@ -24,6 +26,9 @@ let spec = Arg.align [
       , "Output Final Code";
   "-O", Arg.Unit    (function () -> optimizations := true)
       , "Enable Optimizations";
+  "-fjmp_opt", Arg.Unit (function () -> flag_jump_simplification := true)
+      , "Enable Jump Simplification Optimization. (Caution: long jump errors\
+        possible";
 ]
 
 let anon_fun str = in_file := Some str       
@@ -45,7 +50,8 @@ let optimize block_code =
     OptimizationSupport.compute_global_definitions block_code;
   
     (* Simplify jumps *)
-    (*Optimizations.jump_simplification block_code;*)
+    if (!flag_jump_simplification) then
+    Optimizations.jump_simplification block_code;
 
     (* Dummy elimination *)
     Optimizations.dummy_elimination block_code;

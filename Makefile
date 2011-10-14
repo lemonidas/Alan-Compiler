@@ -8,9 +8,10 @@ else
 endif
 
 EXEFILE=alanc$(EXE)
-MLFILES= Error.ml Hashcons.ml Identifier.ml Types.ml AlanString.ml  \
-  Symbol.ml Printing.ml QuadTypes.ml Semantic.ml Quads.ml Lexer.ml  \
-  Parser.ml Blocks.ml OptimizationSupport.ml ControlFlow.ml SSA.ml  \
+MLFILES= Debug.ml Error.ml Hashcons.ml Identifier.ml Types.ml 			\
+	AlanString.ml Symbol.ml Printing.ml QuadTypes.ml Semantic.ml 			\
+	Quads.ml Lexer.ml Parser.ml 																			\
+	Blocks.ml OptimizationSupport.ml ControlFlow.ml SSA.ml 						\
   CodeElimination.ml CopyPropagation.ml FinalTypes.ml               \
   TailRecursion.ml Optimizations.ml FinalOptimizations.ml           \
   UDChains.ml Final.ml Main.ml 

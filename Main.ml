@@ -26,9 +26,32 @@ let spec = Arg.align [
       , "Output Final Code";
   "-O", Arg.Unit    (function () -> optimizations := true)
       , "Enable Optimizations";
-  "-fjmp_opt", Arg.Unit (function () -> flag_jump_simplification := true)
-      , "Enable Jump Simplification Optimization. (Caution: long jump errors\
-        possible";
+  "-fjmp", Arg.Unit (function () -> flag_jump_simplification := true)
+      , "Enable Jump Simplification Optimization. (Caution: long jump errors possible";
+  "-dlex", Arg.Unit (function () -> Debug.debug_lexer := true)
+      , "Enable lexer debugging messages";
+  "-dprs", Arg.Unit(function () -> Debug.debug_parser := true)
+      , "Enable parser debugging messages";
+  "-dc_fold", Arg.Unit(function () -> Debug.debug_constant_folding := true)
+      , "Enable parser debugging messages";
+  "-dunr_s", Arg.Unit(function () -> Debug.debug_unreachable_simple := true)
+      , "Enable parser debugging messages";
+  "-dg_defs", Arg.Unit(function () -> Debug.debug_global_def_computation := true)
+      , "Enable parser debugging messages";
+  "-djmp", Arg.Unit(function () -> Debug.debug_jump_simplification := true)
+      , "Enable parser debugging messages";
+  "-ddum", Arg.Unit(function () -> Debug.debug_dummy_elimination := true)
+      , "Enable parser debugging messages";
+  "-dflow", Arg.Unit(function () -> Debug.debug_flowgraph := true)
+      , "Enable parser debugging messages";
+  "-dunr", Arg.Unit(function () -> Debug.debug_unreachable := true)
+      , "Enable parser debugging messages";
+  "-dtail_r", Arg.Unit(function () -> Debug.debug_tail_recursion := true)
+      , "Enable parser debugging messages";
+  "-dreach", Arg.Unit(function () -> Debug.debug_reaching_definitions := true)
+      , "Enable parser debugging messages";
+  "-dssa", Arg.Unit(function () -> Debug.debug_ssa := true)
+      , "Enable parser debugging messages";
 ]
 
 let anon_fun str = in_file := Some str       

@@ -2,6 +2,9 @@ open QuadTypes
 open Error
 open Symbol
 
+(* Type Definitions *)
+
+(* Flowgraph *)
 type flowgraph_node_t = {
   code_block : quad_t array;
   mutable parents : int list;
@@ -9,6 +12,15 @@ type flowgraph_node_t = {
 }
 
 type flowgraph_t = flowgraph_node_t array
+
+(* Data flow graph *)
+type data_flow_node_t = {
+  entry        : quad_elem_t;           (* The entry it holds  *)
+  location     : int * int;             (* Block * instruction *)
+  is_def       : bool;                  (* Is Definition?      *)
+  mutable defs : data_flow_node_t list; (* List of Definitions *)
+  mutable uses : data_flow_node_t list; (* List of Uses        *)
+}
 
 (* A simple Set of Integers for use throughout *)
 module Oint = struct 
@@ -133,3 +145,6 @@ let compute_global_definitions quads =
       walk (i-1);
     ) in
   walk (n-1)
+
+
+

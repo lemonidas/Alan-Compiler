@@ -3,6 +3,7 @@ open QuadTypes
 open Quads
 open Error
 open Symbol
+open Debug
 
 (* Gen element, contains the variable/parameter + the definition instruction number *)
 module DefElem = struct
@@ -73,6 +74,8 @@ let find_local_information block_id block all_vars=
         prsv := PrsvSet.remove q !prsv
       end
     | Quad_unit f ->
+      let globals_used = PrsvSet.filter (is_not_local_var f) all_vars in
+      PrsvSet.iter (fun x -> defs := DefSet.add (x, 0, 0) !defs) globals_used;
       let param_list = 
         match f.entry_info with
         | ENTRY_function fun_info -> fun_info.function_paramlist
@@ -89,7 +92,8 @@ let find_local_information block_id block all_vars=
 
 (* I think this is O(n^2) *)
 let filter_gen_result defs =
-  let filter_fun (q,b,i) = not (DefSet.exists (fun (q1,b1,i1) -> (get_id q = get_id q1) && i < i1) defs) in
+  let filter_fun (q,b,i) = 
+    not (DefSet.exists (fun (q1,b1,i1) -> (get_id q = get_id q1) && i < i1) defs) in
   DefSet.filter filter_fun defs
 
 let reaching_definitions flowgraph =
@@ -97,19 +101,31 @@ let reaching_definitions flowgraph =
   (* Use the precedent functions to create the necessary sets *)
   let n = Array.length flowgraph in
   let gen = Array.make n DefSet.empty in
+  let unfiltered_gen = Array.make n DefSet.empty in
   let prsv = Array.make n PrsvSet.empty in
   let all_uses = find_all_uses flowgraph in
+  
+  (* Debug *)
+  if !debug_reaching_definitions then begin
+    Printf.printf "ALL USES:\n";
+    print_prsv_set all_uses;
+  end;
+
   for i = 0 to n-1 do
     let (g,p) = find_local_information i flowgraph.(i).code_block all_uses in
     gen.(i) <- filter_gen_result g;
+    unfiltered_gen.(i) <- g;
     prsv.(i) <- p;  
   done;
 
-  Printf.printf "Gen sets:\n";
-  Array.iter print_def_set gen;
-  Printf.printf "Presv sets:\n";
-  Array.iter print_prsv_set prsv;
-  Printf.printf "\n";
+  (* Debug *)
+  if !debug_reaching_definitions then begin
+    Printf.printf "Gen sets:\n";
+    Array.iter print_def_set gen;
+    Printf.printf "Prsv sets:\n";
+    Array.iter print_prsv_set prsv;
+    Printf.printf "\n"
+  end;
 
   (* Compute a postorder traversal for the graph *)
   let postorder = compute_postorder_traversal flowgraph in
@@ -130,7 +146,9 @@ let reaching_definitions flowgraph =
   (* Pop the zero from the queue *)
   if (Queue.pop queue != 0) then raise Terminate;
   
-  Printf.printf "Before Defining loop\n";
+  (* Debug *)
+  if !debug_reaching_definitions then
+    Printf.printf "Before Defining loop\n";
   
   let rec loop () =
     if Queue.is_empty queue then ()
@@ -141,16 +159,23 @@ let reaching_definitions flowgraph =
       let rec walk_preds acc_effect = function
         | []     -> acc_effect
         | (h::t) ->
-            Printf.printf "Walking predecessor %d\n" h;
+            if !debug_reaching_definitions then Printf.printf "Walking predecessor %d\n" h;
+
             (* Create RCHin(h) ^ Prsv(h) *)
             let filter_fun (q,b,i) = PrsvSet.exists (fun q1 -> get_id q1 = get_id q) prsv.(h) in
             let preserved = DefSet.filter filter_fun rchin.(h) in
-            Printf.printf "Preserved: "; print_def_set preserved;
+
+            if !debug_reaching_definitions then begin
+              Printf.printf "Preserved: "; print_def_set preserved;
+            end;
     
             (* New Effect = Gen(h) U (RCHin(h) ^ prsv(h)) *)
             let new_effect = DefSet.union preserved gen.(h) in
-            Printf.printf "New effect: "; print_def_set new_effect;
-    
+
+            if !debug_reaching_definitions then begin
+              Printf.printf "New effect: "; print_def_set new_effect;
+            end;
+
             (* New Accumulated effect is the union of the allready accumulated and the new *)
             walk_preds (DefSet.union new_effect acc_effect) t
       in (* End Walk Preds *)
@@ -188,6 +213,34 @@ let reaching_definitions flowgraph =
   loop ();
 
   (* Debug *)
-  Array.iter print_def_set rchin 
+  if !debug_reaching_definitions then Array.iter print_def_set rchin
+
+  (* Initialize the hashtable of the nodes 
+   * It will hash triplets (entry * block * offset) and return the node of the
+   * data flow graph *)
+  (*
+  let data_flow_hash = Hashtbl.create () in
+  *)
+  (*
+  (* UD Chains begin here *)
+  (* Creation of the data flow graph using the above information *)
+  let walk_flowgraph_block flowgraph_node =
+    let 
+    let handle_single_instruction = function
+      | Quad_calc (_, q1, q2, q3) -> cond_add [q1;q2;q3]
+      | Quad_set (q1,q2) -> cond_add [q1;q2]
+      | Quad_array (q1,q2,_) -> cond_add [q1;q2]
+      | Quad_cond (_,q1,q2,_) -> cond_add [q1;q2]
+      | Quad_par (q, _) -> cond_add [q]
+      | Quad_call (f, _) -> (
+        match f.entry_info with
+        | ENTRY_function info -> 
+          cond_add (Hashtbl.fold (fun a _ acc -> Quad_entry a :: acc) info.function_global [])
+        | _ -> internal "Not a function"; raise Terminate
+        )        
+      | _ -> ()
+  
+  *)
+  
 
 

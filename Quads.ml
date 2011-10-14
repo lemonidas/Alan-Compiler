@@ -23,6 +23,12 @@ let is_not_temporary quad =
     )
   | _ -> false
 
+let is_not_local_var f quad =
+  match quad with
+  | Quad_entry ent -> 
+      f.entry_scope.sco_nesting + 1 != ent.entry_scope.sco_nesting
+  | _ -> true
+
 (* Handling [x] case *)
 let dereference x = 
   match x.code with

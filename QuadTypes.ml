@@ -61,3 +61,13 @@ let find_opposite_condition = function
   | ">=" -> "<"
   | "<"  -> ">="
   | _ -> internal "Not a conditional string"; raise Terminate
+
+let equal_quad_elems = function
+  | Quad_none, Quad_none -> true
+  | Quad_valof e1, Quad_valof e2
+  | Quad_entry e1, Quad_entry e2 -> Symbol.equalEntries e1 e2
+  | Quad_int s1, Quad_int s2
+  | Quad_char s1, Quad_char s2
+  | Quad_string s1, Quad_string s2 -> s1 = s2
+  | _ -> false
+  

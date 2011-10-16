@@ -36,3 +36,5 @@ type cond_ret_type = {
 val return_null : unit -> expr_ret_type
 
 val find_opposite_condition : string -> string
+
+val equal_quad_elems : quad_elem_t * quad_elem_t -> bool

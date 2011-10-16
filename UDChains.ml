@@ -213,34 +213,100 @@ let reaching_definitions flowgraph =
   loop ();
 
   (* Debug *)
-  if !debug_reaching_definitions then Array.iter print_def_set rchin
+  if !debug_reaching_definitions then Array.iter print_def_set rchin;
 
   (* Initialize the hashtable of the nodes 
    * It will hash triplets (entry * block * offset) and return the node of the
    * data flow graph *)
-  (*
-  let data_flow_hash = Hashtbl.create () in
-  *)
-  (*
-  (* UD Chains begin here *)
-  (* Creation of the data flow graph using the above information *)
-  let walk_flowgraph_block flowgraph_node =
-    let 
-    let handle_single_instruction = function
-      | Quad_calc (_, q1, q2, q3) -> cond_add [q1;q2;q3]
-      | Quad_set (q1,q2) -> cond_add [q1;q2]
-      | Quad_array (q1,q2,_) -> cond_add [q1;q2]
-      | Quad_cond (_,q1,q2,_) -> cond_add [q1;q2]
-      | Quad_par (q, _) -> cond_add [q]
-      | Quad_call (f, _) -> (
-        match f.entry_info with
-        | ENTRY_function info -> 
-          cond_add (Hashtbl.fold (fun a _ acc -> Quad_entry a :: acc) info.function_global [])
-        | _ -> internal "Not a function"; raise Terminate
-        )        
-      | _ -> ()
   
-  *)
+  let data_flow_hash = Hashtbl.create 42 in
+
+  (* Add all definitions to the hashtable *)
+  let handle_single_unfiltered (q,b,i) =
+    let binding = {
+      entry = q;
+      block_id = b;
+      offset = i;
+      is_def = true;
+      defs = [];
+      uses = []
+    } in
+    Hashtbl.add data_flow_hash (q,b,i) binding 
+  in 
+  Array.iter (DefSet.iter handle_single_unfiltered) unfiltered_gen;
+
+  (* Function to add a single use *)
+  let add_use current_defs (q,b,i) =
+    let defs_set = DefSet.filter (fun (q1,_,_) -> equal_quad_elems (q,q1)) current_defs in
+    let def_binding_list = 
+      DefSet.fold (fun x acc -> (Hashtbl.find data_flow_hash x)::acc) defs_set [] in
+    let use_binding = {
+      entry = q;
+      block_id = b;
+      offset = i;
+      is_def = false;
+      defs = def_binding_list;
+      uses = [];
+    } in
+    Hashtbl.add data_flow_hash (q,b,i) use_binding;
+    let update_def def_binding = def_binding.uses <- use_binding :: def_binding.uses in
+    List.iter update_def def_binding_list
+  in (* End add_use function *)
+  
+  (* Creation of the data flow graph using the above information + functions *)
+  let walk_flowgraph_block current_defs block_id block=
+    let handle_use q i = 
+      if is_not_temporary q then 
+        add_use !current_defs (q,block_id, i) in
+    let handle_def q i = 
+      if is_not_temporary q then 
+        let filter_fun (q1,_,_) = not (equal_quad_elems (q,q1)) in
+        let filtered = DefSet.filter filter_fun !current_defs in
+        current_defs := DefSet.add (q,block_id, i) filtered in
+    let handle_single_instruction inst_no= function
+      | Quad_calc (_, q1, q2, q3) -> 
+          handle_use q1 inst_no; 
+          handle_use q2 inst_no;
+          handle_def q3 inst_no
+      | Quad_set (q1,q2) -> 
+          handle_use q1 inst_no;
+          handle_def q2 inst_no
+      | Quad_array (_,q2,_) -> 
+          handle_use q2 inst_no
+      | Quad_cond (_,q1,q2,_) -> 
+          handle_use q1 inst_no;
+          handle_use q2 inst_no
+      | Quad_par (q, _) -> 
+          handle_use q inst_no
+      (* FIXME | Quad_call (f, _) -> *)
+      | _ -> () in
+    Array.iteri handle_single_instruction block.code_block in (* End walk_flowgraph_block *)
+
+  for i = 0 to n-1 do
+    walk_flowgraph_block (ref rchin.(i)) i flowgraph.(i)
+  done;
+
+  let print_qbi (q,b,i) = Printf.printf "%s %d %d\n" (string_of_quad_elem_t q) b i in
+  let print_bi_from_binding bind = Printf.printf "\t%d %d\n" bind.block_id bind.offset in
+  let print_binding def_elem binding = 
+    Printf.printf "Element: "; print_qbi def_elem;
+    Printf.printf "Bindings:\n";
+    List.iter (print_bi_from_binding) binding.defs;
+    List.iter (print_bi_from_binding) binding.uses in
+
+  if !debug_reaching_definitions then
+    Hashtbl.iter print_binding data_flow_hash
+
+
+    
+
+
+  
+
+
+
+
+  
   
 
 

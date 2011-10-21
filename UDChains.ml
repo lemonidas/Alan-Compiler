@@ -96,7 +96,7 @@ let filter_gen_result defs =
     not (DefSet.exists (fun (q1,b1,i1) -> (get_id q = get_id q1) && i < i1) defs) in
   DefSet.filter filter_fun defs
 
-let reaching_definitions flowgraph =
+let single_reaching_definitions flowgraph =
  
   (* Use the precedent functions to create the necessary sets *)
   let n = Array.length flowgraph in
@@ -228,9 +228,7 @@ let reaching_definitions flowgraph =
       entry = q;
       block_id = b;
       offset = i;
-      is_def = true;
-      defs = [];
-      uses = []
+      links = []
     } in
     Hashtbl.add defs_hash (q,b,i) binding 
   in 
@@ -245,12 +243,10 @@ let reaching_definitions flowgraph =
       entry = q;
       block_id = b;
       offset = i;
-      is_def = false;
-      defs = def_binding_list;
-      uses = [];
+      links = def_binding_list;
     } in
     Hashtbl.add uses_hash (q,b,i) use_binding;
-    let update_def def_binding = def_binding.uses <- use_binding :: def_binding.uses in
+    let update_def def_binding = def_binding.links <- use_binding :: def_binding.links in
     List.iter update_def def_binding_list
   in (* End add_use function *)
   
@@ -292,8 +288,7 @@ let reaching_definitions flowgraph =
   let print_binding def_elem binding = 
     Printf.printf "Element: "; print_qbi def_elem;
     Printf.printf "Bindings:\n";
-    List.iter (print_bi_from_binding) binding.defs;
-    List.iter (print_bi_from_binding) binding.uses in
+    List.iter (print_bi_from_binding) binding.links in
 
   if !debug_reaching_definitions then (
     Printf.printf "Uses:\n";
@@ -304,7 +299,14 @@ let reaching_definitions flowgraph =
 
   (uses_hash, defs_hash)
 
-
+let reaching_definitions flowgraphs =
+  let empty_hash = Hashtbl.create 0 in
+  let len = Array.length flowgraphs in
+  let chains = Array.make len (empty_hash, empty_hash) in
+  for i = 0 to len - 1 do
+    chains.(i) <- single_reaching_definitions flowgraphs.(i)
+  done;
+  chains
     
 
 

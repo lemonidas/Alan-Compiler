@@ -73,7 +73,7 @@ let single_dead_code_elimination flowgraph (uses_hash, defs_hash) =
 
       (* To handle a use, find its definitions and add them to the worklist *)
       let handle_quad_elem q =
-        if (is_entry q) then
+        if (is_not_temporary q) then
         let binding = 
           try Hashtbl.find uses_hash (q,i,j) 
           with Not_found -> (internal "No ud chain for %s"
@@ -84,23 +84,26 @@ let single_dead_code_elimination flowgraph (uses_hash, defs_hash) =
             mark.(b).(o) <- true;
             worklist := PairSet.add (b,o) !worklist
           ) in
-        List.iter handle_binding binding.defs in
+        List.iter handle_binding binding.links in
       List.iter handle_quad_elem used;
 
       (* To handle a def, find its uses and handle the conditions *)
       let handle_def_elem q =
-        let binding = 
-          try Hashtbl.find defs_hash (q,i,j)
-          with Not_found -> (internal "No du chain"; raise Terminate) in
-        let handle_binding binding =
-          let b = binding.block_id and o = binding.offset in
-          match flowgraph.(b).code_block.(o) with
-          | Quad_cond _ -> 
-              if (not mark.(b).(o)) then
-                mark.(b).(o) <- true;
-                worklist := PairSet.add (b,o) !worklist
-          | _ -> () in
-        List.iter handle_binding binding.uses in
+        if is_not_temporary q then (
+          let binding = 
+            try Hashtbl.find defs_hash (q,i,j)
+            with Not_found -> (internal "No du chain for %s"
+            (string_of_quad_elem_t q); raise Terminate) in
+          let handle_binding binding =
+            let b = binding.block_id and o = binding.offset in
+            match flowgraph.(b).code_block.(o) with
+            | Quad_cond _ -> 
+                if (not mark.(b).(o)) then
+                  mark.(b).(o) <- true;
+                  worklist := PairSet.add (b,o) !worklist
+            | _ -> () in
+          List.iter handle_binding binding.links 
+      ) in
       List.iter handle_def_elem defined;
 
       (* Finally loop again *)
@@ -110,5 +113,10 @@ let single_dead_code_elimination flowgraph (uses_hash, defs_hash) =
   loop ();
 
   Array.iteri (fun i node -> Array.iteri (fun j b -> if (not b) then
-    Printf.printf "Unused: %d %d\n" i j) node) mark;
+    Printf.printf "Unused: %d %d\n" i j) node) mark
 
+let dead_code_elimination flowgraphs chains =
+  let len = Array.length flowgraphs in
+  for i = 0 to len - 1 do
+    single_dead_code_elimination flowgraphs.(i) chains.(i)
+  done

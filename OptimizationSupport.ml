@@ -13,14 +13,12 @@ type flowgraph_node_t = {
 
 type flowgraph_t = flowgraph_node_t array
 
-(* Data flow graph *)
-type data_flow_node_t = {
-  entry        : quad_elem_t;           (* The entry it holds  *)
-  block_id     : int;                   (* Block no            *)
-  offset       : int;                   (* Instruction offset  *)
-  is_def       : bool;                  (* Is Definition?      *)
-  mutable defs : data_flow_node_t list; (* List of Definitions *)
-  mutable uses : data_flow_node_t list; (* List of Uses        *)
+(* UD Chain Node *)
+type chain_node_t = {
+  entry         : quad_elem_t;       (* The entry it holds   *)
+  block_id      : int;               (* Block no             *)
+  offset        : int;               (* Instruction offset   *)
+  mutable links : chain_node_t list; (* List of Linked Nodes *)
 }
 
 (* Pair module and Set *)

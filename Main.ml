@@ -94,9 +94,9 @@ let optimize block_code =
     TailRecursion.tail_recursion_elimination flowgraphs;
     
     (* Reaching definitions *)
-    let hashtables = UDChains.reaching_definitions flowgraphs.(1) in
+    let chains = UDChains.reaching_definitions flowgraphs in
 
-    DeadCodeElimination.single_dead_code_elimination flowgraphs.(1) hashtables;
+    DeadCodeElimination.dead_code_elimination flowgraphs chains;
 
     (* Convert back *)
     let block_code = ControlFlow.convert_back_to_quads flowgraphs in

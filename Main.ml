@@ -52,6 +52,8 @@ let spec = Arg.align [
       , "Enable parser debugging messages";
   "-dssa", Arg.Unit(function () -> Debug.debug_ssa := true)
       , "Enable parser debugging messages";
+  "-ddead", Arg.Unit (function () -> Debug.debug_dead_code_elimination := true)
+      , "Enable dead code elimination debugging messages"
 ]
 
 let anon_fun str = in_file := Some str       
@@ -92,7 +94,9 @@ let optimize block_code =
     TailRecursion.tail_recursion_elimination flowgraphs;
     
     (* Reaching definitions *)
-    UDChains.reaching_definitions flowgraphs.(1);
+    let hashtables = UDChains.reaching_definitions flowgraphs.(1) in
+
+    DeadCodeElimination.single_dead_code_elimination flowgraphs.(1) hashtables;
 
     (* Convert back *)
     let block_code = ControlFlow.convert_back_to_quads flowgraphs in

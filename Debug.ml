@@ -10,5 +10,6 @@ let debug_unreachable             = ref false
 let debug_tail_recursion          = ref false
 let debug_reaching_definitions    = ref false
 let debug_ssa                     = ref false
+let debug_dead_code_elimination   = ref false
 
 

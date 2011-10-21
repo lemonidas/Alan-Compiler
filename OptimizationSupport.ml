@@ -23,6 +23,16 @@ type data_flow_node_t = {
   mutable uses : data_flow_node_t list; (* List of Uses        *)
 }
 
+(* Pair module and Set *)
+module Pair = struct
+  type t = int * int
+  let compare (i11, i12) (i21,i22) =
+    let res = compare i11 i21 in
+    if res = 0 then compare i12 i22 else res
+end
+
+module PairSet = Set.Make(Pair)
+
 (* A simple Set of Integers for use throughout *)
 module Oint = struct 
   type t = int

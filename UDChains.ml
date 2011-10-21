@@ -219,7 +219,8 @@ let reaching_definitions flowgraph =
    * It will hash triplets (entry * block * offset) and return the node of the
    * data flow graph *)
   
-  let data_flow_hash = Hashtbl.create 42 in
+  let uses_hash = Hashtbl.create 42 in
+  let defs_hash = Hashtbl.create 42 in
 
   (* Add all definitions to the hashtable *)
   let handle_single_unfiltered (q,b,i) =
@@ -231,7 +232,7 @@ let reaching_definitions flowgraph =
       defs = [];
       uses = []
     } in
-    Hashtbl.add data_flow_hash (q,b,i) binding 
+    Hashtbl.add defs_hash (q,b,i) binding 
   in 
   Array.iter (DefSet.iter handle_single_unfiltered) unfiltered_gen;
 
@@ -239,7 +240,7 @@ let reaching_definitions flowgraph =
   let add_use current_defs (q,b,i) =
     let defs_set = DefSet.filter (fun (q1,_,_) -> equal_quad_elems (q,q1)) current_defs in
     let def_binding_list = 
-      DefSet.fold (fun x acc -> (Hashtbl.find data_flow_hash x)::acc) defs_set [] in
+      DefSet.fold (fun x acc -> (Hashtbl.find defs_hash x)::acc) defs_set [] in
     let use_binding = {
       entry = q;
       block_id = b;
@@ -248,7 +249,7 @@ let reaching_definitions flowgraph =
       defs = def_binding_list;
       uses = [];
     } in
-    Hashtbl.add data_flow_hash (q,b,i) use_binding;
+    Hashtbl.add uses_hash (q,b,i) use_binding;
     let update_def def_binding = def_binding.uses <- use_binding :: def_binding.uses in
     List.iter update_def def_binding_list
   in (* End add_use function *)
@@ -294,8 +295,14 @@ let reaching_definitions flowgraph =
     List.iter (print_bi_from_binding) binding.defs;
     List.iter (print_bi_from_binding) binding.uses in
 
-  if !debug_reaching_definitions then
-    Hashtbl.iter print_binding data_flow_hash
+  if !debug_reaching_definitions then (
+    Printf.printf "Uses:\n";
+    Hashtbl.iter print_binding uses_hash;
+    Printf.printf "Defs:\n";
+    Hashtbl.iter print_binding defs_hash
+  );
+
+  (uses_hash, defs_hash)
 
 
     

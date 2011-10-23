@@ -93,13 +93,21 @@ let optimize block_code =
     (* Tail Recursion *)
     TailRecursion.tail_recursion_elimination flowgraphs;
     
-    (* Reaching definitions *)
+    (* Reaching definitions to produce UD/DU Chains *)
+    let temp_chains = OptimizationSupport.compute_temporary_info flowgraphs in
     let chains = UDChains.reaching_definitions flowgraphs in
 
-    DeadCodeElimination.dead_code_elimination flowgraphs chains;
+    (* Check for uninitialized values *)
+    UDChains.check_uninitialized_values chains;
+
+    (* Use chains to perform dead code elimination *)
+    DeadCodeElimination.dead_code_elimination flowgraphs chains temp_chains;
 
     (* Convert back *)
     let block_code = ControlFlow.convert_back_to_quads flowgraphs in
+
+    (* Dummy Elimination again to lighten code after eliminations *)
+    Optimizations.dummy_elimination block_code;
     
     block_code
     )

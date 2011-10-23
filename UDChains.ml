@@ -384,7 +384,32 @@ let reaching_definitions flowgraphs =
     chains.(i) <- single_reaching_definitions flowgraphs.(i)
   done;
   chains
-    
+ 
+let single_uninitialized_values_check (uses_hash,_) =  
+
+  (* Function to iter over uses hashtable *)
+  let handle_use _ use_binding = 
+
+    let b = use_binding.block_id in
+    let o = use_binding.offset in
+    let exists_fun def_binding = 
+      def_binding.block_id < b || 
+      (def_binding.block_id = b && def_binding.offset < o) in
+
+    if (not (List.exists exists_fun use_binding.links)) then begin
+      warning "Variable %s could be uninitialized" 
+      (string_of_quad_elem_t use_binding.entry);
+      if !debug_reaching_definitions then begin
+        Printf.printf "Variable %s uninitialized at %d %d\n"
+        (string_of_quad_elem_t use_binding.entry) b o 
+      end
+    end in
+
+  Hashtbl.iter handle_use uses_hash
+
+let check_uninitialized_values chains =
+  Array.iter single_uninitialized_values_check chains
+
 
 
   

@@ -4,13 +4,17 @@ open Quads
 open Error
 open Symbol
 open Debug
+open Types
 
 (* Gen element, contains the variable/parameter + the definition instruction number *)
 module DefElem = struct
   type t = quad_elem_t * int * int
   let compare (q1,b1,i1) (q2,b2,i2) =
-    let res = compare b1 b2 in
-    if res = 0 then compare i1 i2 else res
+    let res1 = compare (get_id q1) (get_id q2) in
+    if res1 = 0 then
+      let res = compare b1 b2 in
+      if res = 0 then compare i1 i2 else res
+    else res1
 end
 
 module DefSet = Set.Make(DefElem)
@@ -80,8 +84,28 @@ let find_local_information block_id block all_vars=
         match f.entry_info with
         | ENTRY_function fun_info -> fun_info.function_paramlist
         | _ -> internal "Function not a function"; raise Terminate;
-      in List.iter (fun x -> defs:= DefSet.add (Quad_entry x, 0,0) !defs) param_list
-    (* FIXME - needs to include Par/Call *)
+      in 
+      List.iter (fun x ->  defs:= DefSet.add (Quad_entry x, 0,0) !defs; ) param_list;
+    | Quad_par (q,pm) when pm != PASS_BY_VALUE ->
+        if is_not_temporary q 
+        then begin
+          defs := DefSet.add (q, block_id, inst_no) !defs;
+          prsv := PrsvSet.remove q !prsv
+        end
+    | Quad_tailCall f
+    | Quad_call (f, _) -> (
+        match f.entry_info with
+        | ENTRY_function fun_info ->
+            let handle_binding entry status = 
+              if status = GLOBAL_DEFINED
+              then begin
+                let q = Quad_entry entry in
+                defs := DefSet.add (q, block_id, inst_no) !defs;
+                prsv := PrsvSet.remove q !prsv
+              end in
+            Hashtbl.iter handle_binding fun_info.function_global
+        | _ -> internal "Not a function"; raise Terminate
+      )
     | _ -> ()
   in
   
@@ -120,6 +144,8 @@ let single_reaching_definitions flowgraph =
 
   (* Debug *)
   if !debug_reaching_definitions then begin
+    Printf.printf "Unfiltered Gen Sets:\n";
+    Array.iter print_def_set unfiltered_gen;
     Printf.printf "Gen sets:\n";
     Array.iter print_def_set gen;
     Printf.printf "Prsv sets:\n";
@@ -215,6 +241,36 @@ let single_reaching_definitions flowgraph =
   (* Debug *)
   if !debug_reaching_definitions then Array.iter print_def_set rchin;
 
+  (* Reaching Definitions have been computed here *)
+
+  (* First find a possible error, in case some control flows don't return a value *)
+  let test_for_return_value () =
+
+    if !debug_reaching_definitions then
+      Printf.printf "Testing for return value\n";
+   
+    match flowgraph.(0).code_block.(0) with
+    | Quad_unit f -> (
+        match f.entry_info with
+        | ENTRY_function fun_info ->
+            if fun_info.function_result != TYPE_proc then begin
+
+              if !debug_reaching_definitions then
+                Printf.printf "Not a proc function\n";
+
+              let exists_fun (q,b,i) = get_id q = "$$" && b = 0 && i = 0 in
+              if DefSet.exists exists_fun rchin.(n-1)
+              then 
+                warning "Some control paths don't return a value in function %s"
+                  (Identifier.id_name f.entry_id)
+            end
+        | _ -> internal "Not a function"; raise Terminate
+    )
+    | _ -> internal "First quad not a unit"; raise Terminate in
+  test_for_return_value ();
+
+  (* Use all the above to compute UD/DU chains as well *)
+
   (* Initialize the hashtable of the nodes 
    * It will hash triplets (entry * block * offset) and return the node of the
    * data flow graph *)
@@ -273,9 +329,30 @@ let single_reaching_definitions flowgraph =
       | Quad_cond (_,q1,q2,_) -> 
           handle_use q1 inst_no;
           handle_use q2 inst_no
-      | Quad_par (q, _) -> 
-          handle_use q inst_no
-      (* FIXME | Quad_call (f, _) -> *)
+      | Quad_par (q, pm) -> 
+          if pm = PASS_BY_VALUE 
+          then
+            handle_use q inst_no
+          else ( 
+            (* handle_use q inst_no; *)
+            handle_def q inst_no
+          )
+      | Quad_tailCall f
+      | Quad_call (f, _) -> (
+          let handle_binding entry status =
+            let q = Quad_entry entry in
+            if status = GLOBAL_USED 
+            then 
+              handle_use q inst_no
+            else (
+            (* handle_use q inst_no; *)
+              handle_def q inst_no
+            ) in
+          match f.entry_info with
+          | ENTRY_function fun_info ->
+              Hashtbl.iter handle_binding fun_info.function_global
+          | _ -> internal "Not a function"; raise Terminate
+        )
       | _ -> () in
     Array.iteri handle_single_instruction block.code_block in (* End walk_flowgraph_block *)
 

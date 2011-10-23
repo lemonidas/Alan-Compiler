@@ -1,4 +1,5 @@
 open QuadTypes
+open Quads
 open Error
 open Symbol
 
@@ -155,5 +156,62 @@ let compute_global_definitions quads =
     ) in
   walk (n-1)
 
+(* Temporary Use - Define Chains *)
+type temporary_info_t = {
+  def_block  : int;
+  def_offset : int;
+  use_block  : int;
+  use_offset : int
+}
 
+let single_compute_temporary_info flowgraph =
+  let temp_hash = Hashtbl.create 17 in
+  let result_hash = Hashtbl.create 17 in
+  let handle_use q i j = 
+    if is_temporary q then try 
+      let (id, jd) = Hashtbl.find temp_hash q in
+      let temp_info = {
+        def_block  = id;
+        def_offset = jd;
+        use_block  = i;
+        use_offset = j
+      } in
+      Hashtbl.add result_hash q temp_info
+    with
+      Not_found -> 
+        internal "Temporary without preceeding definition, %s %d %d"
+         (string_of_quad_elem_t q) i j;
+        raise Terminate in     
+  let handle_def q i j b = 
+    if is_temporary q then
+      if is_valof q && not b then
+        handle_use q i j
+      else Hashtbl.add temp_hash q (i,j) in
+  let handle_block i node =
+    let handle_quad j = function
+    | Quad_calc (_, q1, q2, q3) ->
+        handle_use q1 i j;
+        handle_use q2 i j;
+        handle_def q3 i j false
+    | Quad_set (q1,q2) ->
+        handle_use q1 i j;
+        handle_def q2 i j false
+    | Quad_array (_, q, e) ->
+        handle_use q i j;
+        handle_def (Quad_valof e) i j true
+    | Quad_cond (_, q1, q2, _) ->
+        handle_use q1 i j;
+        handle_use q2 i j
+    | Quad_par (q, pm) ->
+        if pm = PASS_BY_VALUE 
+        then handle_use q i j
+        else handle_def q i j false
+    | _ -> () in
+    Array.iteri handle_quad node.code_block in
+  Array.iteri handle_block flowgraph;
 
+  (* Return the result hash *)
+  result_hash
+
+let compute_temporary_info flowgraphs = 
+  Array.map single_compute_temporary_info flowgraphs

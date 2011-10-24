@@ -19,6 +19,7 @@ type chain_node_t = {
   entry         : quad_elem_t;       (* The entry it holds   *)
   block_id      : int;               (* Block no             *)
   offset        : int;               (* Instruction offset   *)
+  mutable value : int option;        (* For Constant Prop    *)
   mutable links : chain_node_t list; (* List of Linked Nodes *)
 }
 
@@ -161,7 +162,8 @@ type temporary_info_t = {
   def_block  : int;
   def_offset : int;
   use_block  : int;
-  use_offset : int
+  use_offset : int;
+  mutable temp_value : int option;
 }
 
 let single_compute_temporary_info flowgraph =
@@ -174,7 +176,8 @@ let single_compute_temporary_info flowgraph =
         def_block  = id;
         def_offset = jd;
         use_block  = i;
-        use_offset = j
+        use_offset = j;
+        temp_value = None
       } in
       Hashtbl.add result_hash q temp_info
     with

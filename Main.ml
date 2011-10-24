@@ -58,15 +58,15 @@ let spec = Arg.align [
 
 let anon_fun str = in_file := Some str       
 
-let optimize block_code =
+let rec optimize block_code =
   if (!optimizations)
   then (
   
     (* First optimization is allways immediate backward *)
     Optimizations.immediate_backward_propagation block_code;
 
-    (* Constant Folding *)
-    Optimizations.constant_folding block_code;
+    (* Constant Folding - No longer needed *)
+    (* Optimizations.constant_folding block_code; *)
 
     (* Unreachable simple deletions *)
     CodeElimination.perform_deletions block_code;
@@ -100,6 +100,10 @@ let optimize block_code =
     (* Check for uninitialized values *)
     UDChains.check_uninitialized_values chains;
 
+    (* Constant propagation *)
+    let simplified_jump = 
+      ConstantPropagation.constant_propagation flowgraphs chains temp_chains in
+
     (* Use chains to perform dead code elimination *)
     DeadCodeElimination.dead_code_elimination flowgraphs chains temp_chains;
 
@@ -108,8 +112,9 @@ let optimize block_code =
 
     (* Dummy Elimination again to lighten code after eliminations *)
     Optimizations.dummy_elimination block_code;
-    
-    block_code
+
+    if (simplified_jump) then optimize block_code
+    else block_code
     )
   else block_code
   

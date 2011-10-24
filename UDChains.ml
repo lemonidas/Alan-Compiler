@@ -284,6 +284,7 @@ let single_reaching_definitions flowgraph =
       entry = q;
       block_id = b;
       offset = i;
+      value = None;
       links = []
     } in
     Hashtbl.add defs_hash (q,b,i) binding 
@@ -299,6 +300,7 @@ let single_reaching_definitions flowgraph =
       entry = q;
       block_id = b;
       offset = i;
+      value = None;
       links = def_binding_list;
     } in
     Hashtbl.add uses_hash (q,b,i) use_binding;

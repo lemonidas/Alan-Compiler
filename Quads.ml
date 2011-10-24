@@ -18,7 +18,6 @@ let is_entry_or_valof quad =
   | Quad_entry _ 
   | Quad_valof _ -> true
   | _ -> false
-   
 
 let is_not_temporary quad =
   match quad with

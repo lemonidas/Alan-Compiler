@@ -14,7 +14,8 @@ MLFILES= Debug.ml Error.ml Hashcons.ml Identifier.ml Types.ml 			\
 	Blocks.ml OptimizationSupport.ml ControlFlow.ml SSA.ml 						\
   CodeElimination.ml CopyPropagation.ml FinalTypes.ml               \
   TailRecursion.ml Optimizations.ml FinalOptimizations.ml           \
-  UDChains.ml DeadCodeElimination.ml Final.ml Main.ml 
+  UDChains.ml DeadCodeElimination.ml ConstantPropagation.ml					\
+	Final.ml Main.ml 
 MLIFILES=Hashcons.mli Identifier.mli Error.mli Types.mli Symbol.mli \
   QuadTypes.mli Parser.mli Lexer.mli Blocks.mli CopyPropagation.mli \
   CodeElimination.mli TailRecursion.mli ControlFlow.mli Final.mli

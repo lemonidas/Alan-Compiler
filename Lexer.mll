@@ -124,6 +124,8 @@ and parse_string acc= parse
               }
   
   (* Any other character is added to the accumulator *)
+  |'\''       {warning "\' characters must be escaped. Ignoring.."; 
+               parse_string acc lexbuf}
   |_ as c     {parse_string (c::acc) lexbuf}
 
 (* When line feed is found in the middle of the string:

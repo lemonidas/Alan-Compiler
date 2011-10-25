@@ -39,7 +39,7 @@ and function_info = {
   mutable function_result     : Types.typ;
   mutable function_pstatus    : param_status;
   mutable function_initquad   : int;
-  mutable function_negoffs	  : int;
+  mutable function_scope      : scope option;
   function_isLibrary          : bool;
   function_global             : (entry, global_status) Hashtbl.t;
 }
@@ -51,8 +51,8 @@ and parameter_info = {
 }
 
 and temporary_info = {
-  temporary_type   : Types.typ;
-  temporary_offset : int
+  temporary_type           : Types.typ;
+  mutable temporary_offset : int
 }
 
 and entry_info = ENTRY_none
@@ -86,6 +86,7 @@ let no_entry id = {
   entry_info = ENTRY_none
 }
 
+
 let currentScope = ref the_outer_scope
 let quadNext = ref 1
 let tempNumber = ref 1
@@ -111,7 +112,7 @@ let closeScope f =
   begin
 	match f.entry_info with
   	| ENTRY_function(info) ->
-		  info.function_negoffs <- sco.sco_negofs;
+		  info.function_scope <- Some sco
   	| _ -> internal "Function not a function!"
   end;
   let manyentry e = H.remove !tab e.entry_id in
@@ -199,7 +200,7 @@ let newFunction id err lib =
       function_result = TYPE_none;
       function_pstatus = PARDEF_DEFINE;
       function_initquad = 0;
-  	  function_negoffs = 0;
+      function_scope = None;
       function_isLibrary = lib;
       function_global = Hashtbl.create 2;
     } in
@@ -330,3 +331,15 @@ let isLibraryFunction ent =
   match ent.entry_info with
   | ENTRY_function fun_info -> fun_info.function_isLibrary
   | _ -> false
+
+let find_first_temporary_offset scope =
+  let rec helper acc = function
+    | [] -> (acc,[])
+    | (h::t) -> 
+        match h.entry_info with
+        | ENTRY_temporary temp_info ->
+            helper (acc + (sizeOfType temp_info.temporary_type)) t
+        | _ -> (acc,t) in
+  helper scope.sco_negofs scope.sco_entries
+
+        

@@ -29,4 +29,5 @@ Low Level:
 -Consecutive Load/Store Deletions
 
 Other:
+-Remove unused temporary variables from stack
 -Fixed point computation in optimiazations

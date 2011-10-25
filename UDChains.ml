@@ -19,13 +19,6 @@ end
 
 module DefSet = Set.Make(DefElem)
 
-module PrsvElem = struct
-  type t = quad_elem_t
-  let compare q1 q2 = compare (get_id q1) (get_id q2)
-end
-
-module PrsvSet = Set.Make(PrsvElem)
-
 (* Printing function for debug purposes *)
 let print_def_set set =
   let print_elem (q,b,i) = Printf.printf "<%s,%d,%d> " (string_of_quad_elem_t q) b i in 
@@ -34,13 +27,13 @@ let print_def_set set =
 
 let print_prsv_set set =
   let print_elem q = Printf.printf "<%s> " (string_of_quad_elem_t q) in
-  PrsvSet.iter print_elem set;
+  QuadSet.iter print_elem set;
   Printf.printf "\n"
 
 let find_all_uses flowgraph =
-  let all_uses = ref PrsvSet.empty in
+  let all_uses = ref QuadSet.empty in
   let cond_add q_list = 
-    List.iter (fun q -> if is_not_temporary q then all_uses := PrsvSet.add q !all_uses) q_list in
+    List.iter (fun q -> if is_not_temporary q then all_uses := QuadSet.add q !all_uses) q_list in
   let handle_quad = function
     | Quad_calc (_, q1, q2, q3) -> cond_add [q1;q2;q3]
     | Quad_set (q1,q2) -> cond_add [q1;q2]
@@ -75,11 +68,11 @@ let find_local_information block_id block all_vars=
       if is_not_temporary q 
       then begin  
         defs := DefSet.add (q,block_id,inst_no) !defs;
-        prsv := PrsvSet.remove q !prsv
+        prsv := QuadSet.remove q !prsv
       end
     | Quad_unit f ->
-      let globals_used = PrsvSet.filter (is_not_local_var f) all_vars in
-      PrsvSet.iter (fun x -> defs := DefSet.add (x, 0, 0) !defs) globals_used;
+      let globals_used = QuadSet.filter (is_not_local_var f) all_vars in
+      QuadSet.iter (fun x -> defs := DefSet.add (x, 0, 0) !defs) globals_used;
       let param_list = 
         match f.entry_info with
         | ENTRY_function fun_info -> fun_info.function_paramlist
@@ -90,7 +83,7 @@ let find_local_information block_id block all_vars=
         if is_not_temporary q 
         then begin
           defs := DefSet.add (q, block_id, inst_no) !defs;
-          prsv := PrsvSet.remove q !prsv
+          prsv := QuadSet.remove q !prsv
         end
     | Quad_tailCall f
     | Quad_call (f, _) -> (
@@ -101,7 +94,7 @@ let find_local_information block_id block all_vars=
               then begin
                 let q = Quad_entry entry in
                 defs := DefSet.add (q, block_id, inst_no) !defs;
-                prsv := PrsvSet.remove q !prsv
+                prsv := QuadSet.remove q !prsv
               end in
             Hashtbl.iter handle_binding fun_info.function_global
         | _ -> internal "Not a function"; raise Terminate
@@ -126,7 +119,7 @@ let single_reaching_definitions flowgraph =
   let n = Array.length flowgraph in
   let gen = Array.make n DefSet.empty in
   let unfiltered_gen = Array.make n DefSet.empty in
-  let prsv = Array.make n PrsvSet.empty in
+  let prsv = Array.make n QuadSet.empty in
   let all_uses = find_all_uses flowgraph in
   
   (* Debug *)
@@ -188,7 +181,7 @@ let single_reaching_definitions flowgraph =
             if !debug_reaching_definitions then Printf.printf "Walking predecessor %d\n" h;
 
             (* Create RCHin(h) ^ Prsv(h) *)
-            let filter_fun (q,b,i) = PrsvSet.exists (fun q1 -> get_id q1 = get_id q) prsv.(h) in
+            let filter_fun (q,b,i) = QuadSet.exists (fun q1 -> get_id q1 = get_id q) prsv.(h) in
             let preserved = DefSet.filter filter_fun rchin.(h) in
 
             if !debug_reaching_definitions then begin

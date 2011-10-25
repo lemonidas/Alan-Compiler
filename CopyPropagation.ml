@@ -4,16 +4,6 @@ open Quads
 open Symbol
 open Error
 
-module KillElem = struct
-  type t = quad_elem_t
-  let compare q1 q2 = 
-    let id1 = Quads.get_id q1 in
-    let id2 = Quads.get_id q2 in
-    compare id1 id2
-end
-
-module KillSet = Set.Make(KillElem)
-
 module CopyElem = struct
   type t = quad_elem_t * quad_elem_t * int
   let compare (q11,q12,b1) (q21,q22,b2) =
@@ -42,7 +32,7 @@ let local_copy_propagation flowgraph_node cp_in block_id=
     | None -> Hashtbl.create n
     | Some x -> x in
 
-  let kill_set = ref KillSet.empty in
+  let kill_set = ref QuadSet.empty in
 
   let copy_value q = 
     try 
@@ -70,12 +60,12 @@ let local_copy_propagation flowgraph_node cp_in block_id=
           block.(i) <- Quad_calc(op, new_q1, new_q2, q)
         );
         remove_value q;
-        if (is_not_temporary q) then kill_set := KillSet.add q !kill_set
+        if (is_not_temporary q) then kill_set := QuadSet.add q !kill_set
     | Quad_set (q, qr) ->
         if(is_not_temporary q && is_not_temporary qr)
         then Hashtbl.replace local_cp_hash qr q
         else remove_value qr;
-        if (is_not_temporary qr) then kill_set := KillSet.add qr !kill_set
+        if (is_not_temporary qr) then kill_set := QuadSet.add qr !kill_set
     | Quad_array (q1, q2, e) ->
         let (new_q2, changed) = copy_value q2 in
         if (changed) then (
@@ -94,7 +84,7 @@ let local_copy_propagation flowgraph_node cp_in block_id=
             if(changed) then block.(i) <- Quad_par(new_q, pm)
         | _ -> (* Value changes by reference.. *)
             remove_value q;
-             if (is_not_temporary q) then kill_set := KillSet.add q !kill_set
+             if (is_not_temporary q) then kill_set := QuadSet.add q !kill_set
       )
     |_ -> () (* Nothing to be done here *)
   done;
@@ -112,7 +102,7 @@ let copy_propagation flowgraph =
 
   let n = Array.length flowgraph in  
   let copy_sets = Array.make n CopySet.empty in
-  let kill_sets = Array.make n KillSet.empty in
+  let kill_sets = Array.make n QuadSet.empty in
   
   (* Populate arrays of sets, doing the initial local cp *)
   Array.iteri 
@@ -157,8 +147,8 @@ let copy_propagation flowgraph =
           
             (* Create : CPin(h)-kill(h) *)
             let filter_fun (a,b,_) = 
-               not (KillSet.mem a kill_sets.(h) 
-               ||  KillSet.mem b kill_sets.(h)) in              
+               not (QuadSet.mem a kill_sets.(h) 
+               ||  QuadSet.mem b kill_sets.(h)) in              
             let not_killed = CopySet.filter filter_fun cpin.(h) in
             (* New Effect = Copy(h) U (CPin(h)-Kill(h) *)
             let new_effect = CopySet.union not_killed copy_sets.(h) in

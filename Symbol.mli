@@ -29,7 +29,7 @@ and function_info = {                         (******* Συνάρτηση *******)
   mutable function_result     : Types.typ;    (* Τύπος αποτελέσματος   *)
   mutable function_pstatus    : param_status; (* Κατάσταση παραμέτρων  *)
   mutable function_initquad   : int;          (* Αρχική τετράδα        *)
-  mutable function_negoffs 	  : int;			    (* Negative offsets 	   *)
+  mutable function_scope  	  : scope option; (* Negative offsets 	   *)
   function_isLibrary          : bool;         (* If it is a Lib func   *)
   function_global             : (entry, global_status) Hashtbl.t 
                                               (* Global Definitions    *)
@@ -42,8 +42,8 @@ and parameter_info = {                        (****** Παράμετρος *******)
 }
 
 and temporary_info = {                        (** Προσωρινή μεταβλητή **)
-  temporary_type   : Types.typ;               (* Τύπος                 *)
-  temporary_offset : int                      (* Offset στο Ε.Δ.       *)
+  temporary_type           : Types.typ;       (* Τύπος                 *)
+  mutable temporary_offset : int              (* Offset στο Ε.Δ.       *)
 }
 
 and entry_info = ENTRY_none
@@ -82,3 +82,4 @@ val start_negative_offset : int   (* Αρχικό αρνητικό offset στο Ε.Δ. *)
 
 val equalEntries : entry -> entry -> bool
 val isLibraryFunction : entry -> bool
+val find_first_temporary_offset : scope -> (int * entry list)

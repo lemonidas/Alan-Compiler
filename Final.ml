@@ -351,7 +351,11 @@ let final_t_of_quad = function
   |Quad_unit(f)->
     Stack.push f func_stack;
     let size = match f.entry_info with
-      | ENTRY_function (info) -> (-info.function_negoffs)
+      | ENTRY_function (info) -> (
+        match info.function_scope with
+        | Some sco -> - sco.sco_negofs
+        | None -> internal "No scope in function"; raise Terminate
+      )
       | _ -> internal "Function not a function"; raise Terminate
     in flatten_rev []
     [ [Proc (get_name f)];

@@ -2,6 +2,7 @@ open QuadTypes
 open Quads
 open Error
 open Symbol
+open Identifier
 
 (* Type Definitions *)
 
@@ -40,6 +41,27 @@ module Oint = struct
 end
 
 module Sint = Set.Make(Oint)
+
+(* Set of quad_elem_t *)
+module QuadElem = struct
+  type t = quad_elem_t
+  let compare q1 q2 = compare (get_id q1) (get_id q2)
+end
+
+module QuadSet = Set.Make(QuadElem)
+
+(* Set of Symbol entries for Temporaries *)
+module EntryElem = struct
+  type t = Symbol.entry  
+  let compare e1 e2 = 
+    let id1 = id_name e1.entry_id in
+    let id2 = id_name e2.entry_id in
+    let t1 = String.sub id1 1 (String.length id1 - 1) in
+    let t2 = String.sub id2 1 (String.length id2 - 1) in
+    compare (int_of_string t1) (int_of_string t2)
+end
+
+module EntrySet = Set.Make(EntryElem)
 
 let compute_postorder_traversal flowgraph =
   let n = Array.length flowgraph in

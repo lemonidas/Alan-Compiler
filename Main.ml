@@ -33,27 +33,29 @@ let spec = Arg.align [
   "-dprs", Arg.Unit(function () -> Debug.debug_parser := true)
       , "Enable parser debugging messages";
   "-dc_fold", Arg.Unit(function () -> Debug.debug_constant_folding := true)
-      , "Enable parser debugging messages";
+      , "Enable constant folding debugging messages";
   "-dunr_s", Arg.Unit(function () -> Debug.debug_unreachable_simple := true)
-      , "Enable parser debugging messages";
+      , "Enable simple unreachable code elimination debugging messages";
   "-dg_defs", Arg.Unit(function () -> Debug.debug_global_def_computation := true)
-      , "Enable parser debugging messages";
+      , "Enable global definition computation debugging messages";
   "-djmp", Arg.Unit(function () -> Debug.debug_jump_simplification := true)
-      , "Enable parser debugging messages";
+      , "Enable jump simplification debugging messages";
   "-ddum", Arg.Unit(function () -> Debug.debug_dummy_elimination := true)
-      , "Enable parser debugging messages";
+      , "Enable dummy elimination debugging messages";
   "-dflow", Arg.Unit(function () -> Debug.debug_flowgraph := true)
-      , "Enable parser debugging messages";
+      , "Enable flowgraph creation debugging messages";
   "-dunr", Arg.Unit(function () -> Debug.debug_unreachable := true)
-      , "Enable parser debugging messages";
+      , "Enable control-flow based unreachable code elimination debugging messages";
   "-dtail_r", Arg.Unit(function () -> Debug.debug_tail_recursion := true)
-      , "Enable parser debugging messages";
+      , "Enable tail recursion elimination debugging messages";
   "-dreach", Arg.Unit(function () -> Debug.debug_reaching_definitions := true)
-      , "Enable parser debugging messages";
+      , "Enable reaching definitions debugging messages";
   "-dssa", Arg.Unit(function () -> Debug.debug_ssa := true)
-      , "Enable parser debugging messages";
+      , "Enable ssa debugging messages";
   "-ddead", Arg.Unit (function () -> Debug.debug_dead_code_elimination := true)
-      , "Enable dead code elimination debugging messages"
+      , "Enable dead code elimination debugging messages";
+  "-dtemp", Arg.Unit (function () -> Debug.debug_temporary_deletion := true)
+      , "Enable temporary variables deletion debug messages"
 ]
 
 let anon_fun str = in_file := Some str       
@@ -109,6 +111,8 @@ let rec optimize block_code =
 
     (* Convert back *)
     let block_code = ControlFlow.convert_back_to_quads flowgraphs in
+
+    CodeElimination.delete_temporary_variables block_code;    
 
     (* Dummy Elimination again to lighten code after eliminations *)
     Optimizations.dummy_elimination block_code;

@@ -130,7 +130,10 @@ let handle_final_code_tail_recursion ent label =
   (* Find the size of the stack above bp - not accounting for bp itself *)
   let bp_offset = (if fun_info.function_result = TYPE_proc then 2 else 0) + 6 in
   (* Find the location of the stack pointer - negoffs is negative!!! *)
-  let sp_negoff = fun_info.function_negoffs - param_length in
+  let sp_negoff = 
+    match fun_info.function_scope with
+    | Some sco -> sco.sco_negofs - param_length
+    | None -> internal "No scope for Function"; raise Terminate in
 
   (* Debug *)
   (* Printf.printf "Param Length : %d\n" param_length;

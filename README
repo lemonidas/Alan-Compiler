@@ -2,32 +2,56 @@ Alan Compiler
 Project for Course: http://courses.softlab.ntua.gr/compilers/
 Author: Lampropoulos Leonidas - 03107044
 
-Lexer:        Done
-Parser:       Done
-Intermediate: Done
-Final Code:   Done
+Compilation:
+make depend
+make
+
+Basics:
+
+Lexer:        Lexer.mll AlanString.ml
+Parser:       Parser.mly
+Semantic:     Semantic.ml
+Intermediate: QuadTypes.ml Quads.ml
+Final Code:   FinalTypes.ml Final.ml AlanString.ml
 
 Optimizations:
 
 Easy ones:
--Constant Folding
--Reverse Copy Propagation
--Unreachable Code (After Unconditional Jumps-ret)
--Jump Simplification 
+-Constant Folding (Deactivated)       : Optimizations.ml
+-Reverse Copy Propagation             : Optimizations.ml
+-Linear Unreachable Code Elimination  : CodeElimination.ml
+-Jump Simplification                  : Optimizations.ml
 
 Control Flow:
--Tail Recursion Elimination
--Unreachable Code Elimination (blocks)
+-Block Conversion                     : Blocks.ml
+-Flowgraph creation                   : ControlFlow.ml
+-Dominators (used for SSA)            : ControlFlow.ml
+-Tail Recursion Elimination           : TailRecursion.ml
+-Unreachable Code Elimination (flow)  : CodeElimination.ml
 
 Data Flow:
--Copy Propagation
--Reaching Definitions
--Dead Code Elimination
--Constant Propagation
+-SSA (calculation of phi-points)      : SSA.ml (unused - UDChains used for CP instead)
+-Copy Propagation                     : CopyPropagation.ml
+-Reaching Definitions                 : UDChains.ml
+-Dead Code Elimination                : DeadCodeElimination.ml
+-Constant Propagation                 : ConstantPropagation.ml
 
 Low Level:
--Consecutive Load/Store Deletions
+-Consecutive Load/Store Deletions     : FinalOptimizations.ml
 
 Other:
--Remove unused temporary variables from stack
--Fixed point computation in optimiazations
+-Remove unused temporaries            : CodeElimination.ml
+-Fixed point computation              : Main.ml (trivial)
+
+Significant Changes:
+
+-Added type to scope, library flag in functions
+-Added hashtable field in functions to contain global use information
+-Added special "TailCall" Quad
+-Added live parameter list in par quad
+-Changed the logic of intermediate code jump creation (see pdf readme...)
+-Added pointer type to handle arrays more clearly
+-Debug.ml contains flag declaration to enable debugging messages
+
+For more information, AlanCompiler.pdf. (Turned out little longer than expected...)
+
